@@ -6,6 +6,7 @@ import type { StyleProfile } from "@/lib/types";
 export default function SettingsForm({ initial }: { initial: StyleProfile | null }) {
   const [language, setLanguage] = useState(initial?.language_guidelines ?? "");
   const [visual, setVisual] = useState(initial?.visual_guidelines ?? "");
+  const [canva, setCanva] = useState(initial?.canva_covers_url ?? "");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -15,7 +16,11 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
     await fetch("/api/style", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ language_guidelines: language, visual_guidelines: visual }),
+      body: JSON.stringify({
+        language_guidelines: language,
+        visual_guidelines: visual,
+        canva_covers_url: canva,
+      }),
     });
     setSaving(false);
     setSaved(true);
@@ -49,6 +54,20 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
           onChange={(e) => setVisual(e.target.value)}
           rows={5}
           className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm leading-relaxed"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-semibold">קישור לקאברים ב-Canva</span>
+        <span className="text-xs text-muted">
+          הקישור לעיצוב/תיקיית הקאברים שלך ב-Canva. מופיע ככפתור &quot;פתח את הקאברים&quot; בכל פרק.
+        </span>
+        <input
+          value={canva}
+          onChange={(e) => setCanva(e.target.value)}
+          dir="ltr"
+          placeholder="https://www.canva.com/design/…"
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm"
         />
       </label>
 

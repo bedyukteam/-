@@ -45,16 +45,21 @@ export default function EpisodeView({
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [busyKind, setBusyKind] = useState<GenerationKind | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
+  const [canvaUrl, setCanvaUrl] = useState("");
   const drivingRef = useRef(false);
 
   const load = useCallback(async () => {
     const [{ data: ep }, { data: j }, { data: tr }, { data: g }] = await Promise.all([
-      supabase.from("episodes").select("status").eq("id", episodeId).single(),
+      supabase.from("episodes").select("status, thumbnail_path").eq("id", episodeId).single(),
       supabase.from("jobs").select("*").eq("episode_id", episodeId).order("created_at"),
       supabase.from("transcripts").select("*").eq("episode_id", episodeId).maybeSingle(),
       supabase.from("generations").select("*").eq("episode_id", episodeId).order("created_at"),
     ]);
-    if (ep) setStatus(ep.status);
+    if (ep) {
+      setStatus(ep.status);
+      setThumbnailPath((ep as { thumbnail_path: string | null }).thumbnail_path ?? null);
+    }
     setJobs((j ?? []) as Job[]);
     setTranscript((tr as Transcript) ?? null);
     const gg = (g ?? []) as Generation[];
@@ -85,6 +90,18 @@ export default function EpisodeView({
     }, 3000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Fetch the channel's Canva covers link once.
+  useEffect(() => {
+    supabase
+      .from("style_profiles")
+      .select("canva_covers_url")
+      .eq("channel_id", process.env.NEXT_PUBLIC_DEFAULT_CHANNEL_ID!)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.canva_covers_url) setCanvaUrl(data.canva_covers_url);
+      });
+  }, [supabase]);
 
   // Drive the pipeline one bounded request per stage, following `next` until done.
   const driveChain = useCallback(
@@ -159,12 +176,27 @@ export default function EpisodeView({
   const byKind = (k: GenerationKind) => gens.filter((g) => g.kind === k);
   const errored = jobs.find((j) => j.status === "error");
   const processing = status !== "ready" && !errored;
+  const approvedThumbTitle =
+    (gens.find((g) => g.kind === "thumbnail_title" && g.selected)?.content as
+      | { text?: string }
+      | undefined)?.text ?? "";
 
   return (
     <div className="flex flex-col gap-6">
       <StatusTimeline jobs={jobs} processing={processing} />
 
-      {gens.length > 0 && <ApprovalBar gens={gens} />}
+      {gens.length > 0 && <ApprovalBar gens={gens} thumbnailReady={!!thumbnailPath} />}
+
+      {gens.length > 0 && (
+        <FinalThumbnailPanel
+          episodeId={episodeId}
+          canvaUrl={canvaUrl}
+          approvedTitle={approvedThumbTitle}
+          thumbnailPath={thumbnailPath}
+          supabase={supabase}
+          onChange={load}
+        />
+      )}
 
       {errored && (
         <div className="bg-red-50 border border-red-200 text-danger rounded-xl p-4 text-sm flex items-center justify-between gap-3">
@@ -336,8 +368,9 @@ function SelectStar({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: 
   );
 }
 
-function ApprovalBar({ gens }: { gens: Generation[] }) {
-  const isApproved = (k: GenerationKind) => gens.some((g) => g.kind === k && g.selected);
+function ApprovalBar({ gens, thumbnailReady }: { gens: Generation[]; thumbnailReady: boolean }) {
+  const isApproved = (k: GenerationKind) =>
+    k === "thumbnail" ? thumbnailReady : gens.some((g) => g.kind === k && g.selected);
   const done = REQUIRED_KINDS.filter(isApproved).length;
   const allDone = done === REQUIRED_KINDS.length;
   return (
@@ -359,6 +392,118 @@ function ApprovalBar({ gens }: { gens: Generation[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function FinalThumbnailPanel({
+  episodeId,
+  canvaUrl,
+  approvedTitle,
+  thumbnailPath,
+  supabase,
+  onChange,
+}: {
+  episodeId: string;
+  canvaUrl: string;
+  approvedTitle: string;
+  thumbnailPath: string | null;
+  supabase: ReturnType<typeof createClient>;
+  onChange: () => Promise<void> | void;
+}) {
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!thumbnailPath) {
+      setUrl("");
+      return;
+    }
+    supabase.storage
+      .from("media")
+      .createSignedUrl(thumbnailPath, 3600)
+      .then(({ data }) => setUrl(data?.signedUrl ?? ""));
+  }, [thumbnailPath, supabase]);
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setBusy(true);
+    try {
+      const ext = (f.name.split(".").pop() || "png").toLowerCase();
+      const path = `thumbnails/${episodeId}/final-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("media")
+        .upload(path, f, { upsert: true, contentType: f.type || "image/png" });
+      if (error) throw error;
+      await supabase.from("episodes").update({ thumbnail_path: path }).eq("id", episodeId);
+      await onChange();
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <section className="bg-surface border border-border rounded-2xl p-5">
+      <h3 className="font-bold mb-3">תמונה ממוזערת סופית (Canva)</h3>
+
+      {approvedTitle ? (
+        <div className="bg-surface-2 rounded-lg p-3 mb-3 flex items-center justify-between gap-2">
+          <span className="text-sm">
+            כותרת מאושרת לתמונה: <b>{approvedTitle}</b>
+          </span>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(approvedTitle);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1200);
+            }}
+            className="shrink-0 text-xs text-muted hover:text-accent"
+          >
+            {copied ? "הועתק ✓" : "העתק"}
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted mb-3">
+          אשרי קודם כותרת ב״כותרות לתמונה הממוזערת״, ואז העתיקי אותה לקאבר.
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2 items-center mb-3">
+        {canvaUrl && (
+          <a
+            href={canvaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90"
+          >
+            🎨 פתח את הקאברים ב-Canva
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          className="border border-border rounded-lg px-4 py-2 text-sm hover:border-accent disabled:opacity-50"
+        >
+          {busy ? "מעלה…" : thumbnailPath ? "החלף תמונה" : "העלה תמונה ממוזערת סופית"}
+        </button>
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+      </div>
+
+      {url && (
+        <div className="rounded-xl overflow-hidden border border-border max-w-md">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="תמונה ממוזערת סופית" className="w-full" />
+        </div>
+      )}
+
+      <p className="text-xs text-muted mt-2">
+        פותחים את הקאברים → בוחרים קאבר → מדביקים את הכותרת בפונט הקיים → מייצאים PNG → מעלים כאן.
+      </p>
+    </section>
   );
 }
 

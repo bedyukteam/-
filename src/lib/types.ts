@@ -27,6 +27,7 @@ export interface StyleProfile {
   channel_id: string;
   language_guidelines: string;
   visual_guidelines: string;
+  canva_covers_url: string;
   updated_at: string;
 }
 
