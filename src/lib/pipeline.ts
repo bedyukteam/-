@@ -4,6 +4,7 @@ import { extractAudioChunks } from "./audio";
 import {
   StyleContext,
   buildTitlesPrompt,
+  buildThumbnailTitlePrompt,
   buildDescriptionPrompt,
   buildCarouselsPrompt,
   buildQuotesPrompt,
@@ -91,6 +92,24 @@ export async function runTranscribe(sb: SupabaseClient, episodeId: string): Prom
   if (!ep) throw new Error("episode not found");
 
   await setEpisodeStatus(sb, episodeId, "processing");
+
+  // Transcript provided directly (paste / SRT) → nothing to transcribe.
+  if (!ep.source_path) {
+    const { data: tr } = await sb
+      .from("transcripts")
+      .select("episode_id")
+      .eq("episode_id", episodeId)
+      .maybeSingle();
+    const job = await startJob(sb, episodeId, "transcribe");
+    if (tr) {
+      await finishJob(sb, job);
+      return "generate";
+    }
+    await finishJob(sb, job, "אין קובץ מקור ואין תמלול");
+    await setEpisodeStatus(sb, episodeId, "error");
+    throw new Error("no source and no transcript");
+  }
+
   const job = await startJob(sb, episodeId, "transcribe");
   try {
     const { data: file, error: dlErr } = await sb.storage
@@ -121,8 +140,11 @@ export async function runTranscribe(sb: SupabaseClient, episodeId: string): Prom
 
 /* ---------------- Stage 2: text generation ---------------- */
 async function generateAllText(transcript: string, ctx: StyleContext, episodeId: string) {
-  const [titles, description, carousels, quotes, ideas, thumbs] = await Promise.all([
+  const [titles, thumbTitles, description, carousels, quotes, ideas, thumbs] = await Promise.all([
     chatJSON<{ titles: string[] }>(...promptArgs(buildTitlesPrompt(transcript, ctx))),
+    chatJSON<{ thumbnail_titles: string[] }>(
+      ...promptArgs(buildThumbnailTitlePrompt(transcript, ctx)),
+    ),
     chatJSON<{ description: string }>(...promptArgs(buildDescriptionPrompt(transcript, ctx))),
     chatJSON<{ carousels: { title: string; slides: string[] }[] }>(
       ...promptArgs(buildCarouselsPrompt(transcript, ctx)),
@@ -139,6 +161,8 @@ async function generateAllText(transcript: string, ctx: StyleContext, episodeId:
   const rows: GenRow[] = [];
   for (const t of (titles.titles ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "title", content: { text: t } });
+  for (const t of (thumbTitles.thumbnail_titles ?? []).slice(0, 5))
+    rows.push({ episode_id: episodeId, kind: "thumbnail_title", content: { text: t } });
   if (description.description)
     rows.push({ episode_id: episodeId, kind: "description", content: { text: description.description } });
   for (const c of (carousels.carousels ?? []).slice(0, 5))
@@ -269,6 +293,11 @@ export async function regenerateKind(
   if (kind === "title") {
     const r = await chatJSON<{ titles: string[] }>(...promptArgs(buildTitlesPrompt(transcript, ctx)));
     rows = (r.titles ?? []).slice(0, 5).map((t) => ({ episode_id: episodeId, kind, content: { text: t } }));
+  } else if (kind === "thumbnail_title") {
+    const r = await chatJSON<{ thumbnail_titles: string[] }>(
+      ...promptArgs(buildThumbnailTitlePrompt(transcript, ctx)),
+    );
+    rows = (r.thumbnail_titles ?? []).slice(0, 5).map((t) => ({ episode_id: episodeId, kind, content: { text: t } }));
   } else if (kind === "description") {
     const r = await chatJSON<{ description: string }>(...promptArgs(buildDescriptionPrompt(transcript, ctx)));
     rows = [{ episode_id: episodeId, kind, content: { text: r.description } }];

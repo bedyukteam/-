@@ -4,21 +4,41 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as tus from "tus-js-client";
 import { createClient } from "@/lib/supabase/client";
-import type { EpisodeType } from "@/lib/types";
+import type { EpisodeType, InputMode } from "@/lib/types";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// Compress files above this client-side so the upload fits Supabase's 50MB cap.
 const COMPRESS_OVER_BYTES = 45 * 1024 * 1024;
 
 function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_");
 }
 
+/** Strip SRT/VTT cue numbers, timestamps and tags → plain transcript text. */
+function srtToText(srt: string): string {
+  return srt
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && l !== "WEBVTT" && !/^\d+$/.test(l) && !l.includes("-->"))
+    .join(" ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const MODES: { key: InputMode; label: string }[] = [
+  { key: "transcript", label: "הדבקת תמלול" },
+  { key: "srt", label: "קובץ כתוביות (SRT)" },
+  { key: "audio", label: "קובץ אודיו" },
+];
+
 export default function UploadForm() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const srtRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<InputMode>("transcript");
   const [type, setType] = useState<EpisodeType>("episode");
   const [title, setTitle] = useState("");
+  const [transcript, setTranscript] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
   const [stage, setStage] = useState<"compress" | "upload" | "process" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,15 +51,11 @@ export default function UploadForm() {
     } = await supabase.auth.getSession();
     const token = session?.access_token;
     const path = `uploads/${crypto.randomUUID()}/${safeName(file.name)}`;
-
     await new Promise<void>((resolve, reject) => {
       const up = new tus.Upload(file, {
         endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
         retryDelays: [0, 3000, 5000, 10000, 20000],
-        headers: {
-          authorization: `Bearer ${token}`,
-          "x-upsert": "true",
-        },
+        headers: { authorization: `Bearer ${token}`, "x-upsert": "true" },
         uploadDataDuringCreation: true,
         removeFingerprintOnSuccess: true,
         chunkSize: 6 * 1024 * 1024,
@@ -58,47 +74,62 @@ export default function UploadForm() {
         up.start();
       });
     });
-
     return path;
+  }
+
+  async function createEpisode(payload: Record<string, unknown>) {
+    const res = await fetch("/api/episodes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type, title, ...payload }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? "שגיאה ביצירת הפרק");
+    router.push(`/episodes/${json.id}`);
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const file = fileRef.current?.files?.[0];
-    if (!file) return;
     setBusy(true);
     setError(null);
     try {
+      if (mode === "transcript") {
+        if (transcript.trim().length < 40) {
+          throw new Error("הדביקי תמלול ארוך יותר (לפחות כמה משפטים).");
+        }
+        setStage("process");
+        await createEpisode({ transcript_text: transcript, input_mode: "transcript" });
+        return;
+      }
+
+      if (mode === "srt") {
+        const f = srtRef.current?.files?.[0];
+        if (!f) throw new Error("בחרי קובץ SRT/VTT.");
+        const text = srtToText(await f.text());
+        if (text.length < 40) throw new Error("לא הצלחתי לחלץ טקסט מהקובץ.");
+        setStage("process");
+        await createEpisode({ transcript_text: text, input_mode: "srt" });
+        return;
+      }
+
+      // audio
+      const file = fileRef.current?.files?.[0];
+      if (!file) throw new Error("בחרי קובץ אודיו.");
       let toUpload = file;
-      // Heavy file → compress to a compact mp3 in the browser first.
       if (file.size > COMPRESS_OVER_BYTES) {
         setStage("compress");
         setProgress(0);
         const { compressToAudio } = await import("@/lib/compress");
         toUpload = await compressToAudio(file, (r) => setProgress(Math.round(r * 100)));
         if (toUpload.size > 49 * 1024 * 1024) {
-          throw new Error(
-            "גם אחרי דחיסה הקובץ מעל 50MB (פרק ארוך מאוד). נסי קובץ קצר יותר, או שדרוג Supabase Pro.",
-          );
+          throw new Error("גם אחרי דחיסה הקובץ מעל 50MB. נסי קובץ קצר יותר או הדביקי תמלול.");
         }
       }
       setStage("upload");
       setProgress(0);
       const source_path = await upload(toUpload);
       setStage("process");
-      const res = await fetch("/api/episodes", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          type,
-          title,
-          source_path,
-          source_filename: toUpload.name,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "שגיאה ביצירת הפרק");
-      router.push(`/episodes/${json.id}`);
+      await createEpisode({ source_path, source_filename: toUpload.name });
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -112,8 +143,25 @@ export default function UploadForm() {
       onSubmit={onSubmit}
       className="bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-4"
     >
-      <h2 className="font-bold text-lg">העלאת פרק חדש</h2>
+      <h2 className="font-bold text-lg">פרק חדש</h2>
 
+      {/* input mode */}
+      <div className="flex gap-1 bg-surface-2 rounded-lg p-1">
+        {MODES.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            onClick={() => setMode(m.key)}
+            className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+              mode === m.key ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* episode / short */}
       <div className="flex gap-2">
         {(["episode", "short"] as EpisodeType[]).map((t) => (
           <button
@@ -141,36 +189,61 @@ export default function UploadForm() {
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">קובץ אודיו/וידאו</span>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="audio/*,video/*"
-          required
-          className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
-        />
-        <span className="text-xs text-muted">
-          קבצים מעל ~45MB נדחסים אוטומטית בדפדפן ל-mp3 לפני ההעלאה (מומלץ אודיו; וידאו כבד מאוד עלול להיות איטי).
-        </span>
-      </label>
+      {mode === "transcript" && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">תמלול הפרק</span>
+          <textarea
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            rows={8}
+            placeholder="הדביקי כאן את התמלול מ-Veed…"
+            className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm leading-relaxed"
+          />
+          <span className="text-xs text-muted">
+            הדרך המהירה: ב-Veed מסמנים את התמלול, מעתיקים (Cmd+C) ומדביקים כאן.
+          </span>
+        </label>
+      )}
+
+      {mode === "srt" && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">קובץ כתוביות מ-Veed</span>
+          <input
+            ref={srtRef}
+            type="file"
+            accept=".srt,.vtt,text/plain"
+            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
+          />
+          <span className="text-xs text-muted">ב-Veed: Export → Subtitles (SRT) ואז העלי כאן.</span>
+        </label>
+      )}
+
+      {mode === "audio" && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">קובץ אודיו/וידאו</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="audio/*,video/*"
+            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
+          />
+          <span className="text-xs text-muted">
+            קבצים מעל ~45MB נדחסים אוטומטית בדפדפן לפני ההעלאה.
+          </span>
+        </label>
+      )}
 
       {progress !== null && (
         <div className="flex flex-col gap-1">
           <div className="h-2 bg-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-accent transition-all"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
           </div>
           <span className="text-xs text-muted">
             {stage === "compress"
               ? progress === 0
                 ? "טוען מנוע דחיסה…"
                 : `מכווץ אודיו בדפדפן… ${progress}%`
-              : stage === "upload"
-                ? `מעלה… ${progress}%`
-                : "מעבד את הפרק…"}
+              : `מעלה… ${progress}%`}
           </span>
         </div>
       )}
@@ -182,7 +255,7 @@ export default function UploadForm() {
         disabled={busy}
         className="bg-accent text-accent-foreground rounded-lg py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
       >
-        {busy ? "מעלה…" : "העלאה והפקה"}
+        {busy ? "מעבד…" : "צור חבילת תוכן"}
       </button>
     </form>
   );

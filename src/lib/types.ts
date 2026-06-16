@@ -7,11 +7,14 @@ export type JobStatus = "queued" | "running" | "done" | "error";
 
 export type GenerationKind =
   | "title"
+  | "thumbnail_title"
   | "thumbnail"
   | "description"
   | "carousel"
   | "quote"
   | "idea";
+
+export type InputMode = "transcript" | "srt" | "audio";
 
 export interface Channel {
   id: string;

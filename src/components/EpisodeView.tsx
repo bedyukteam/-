@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { KIND_LABELS, KIND_ORDER, STAGE_LABELS } from "@/lib/constants";
+import { KIND_LABELS, KIND_ORDER, REQUIRED_KINDS, STAGE_LABELS } from "@/lib/constants";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
 
 const TERMINAL = new Set(["ready"]);
@@ -44,6 +44,7 @@ export default function EpisodeView({
   const [gens, setGens] = useState<Generation[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [busyKind, setBusyKind] = useState<GenerationKind | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const drivingRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -58,6 +59,7 @@ export default function EpisodeView({
     setTranscript((tr as Transcript) ?? null);
     const gg = (g ?? []) as Generation[];
     setGens(gg);
+    setLoaded(true);
 
     const thumbs = gg.filter((x) => x.kind === "thumbnail" && x.image_path);
     if (thumbs.length) {
@@ -112,12 +114,14 @@ export default function EpisodeView({
   );
 
   // Auto-start / auto-resume processing (but pause on errors for manual retry).
+  // Gated on `loaded` so it never fires with the empty initial jobs state.
   useEffect(() => {
+    if (!loaded) return;
     if (status === "ready") return;
     if (jobs.some((j) => j.status === "error")) return;
     const start = nextAuto(jobs);
     if (start) driveChain(start);
-  }, [jobs, status, driveChain]);
+  }, [loaded, jobs, status, driveChain]);
 
   async function regenerate(kind: GenerationKind, feedback?: string) {
     setBusyKind(kind);
@@ -159,6 +163,8 @@ export default function EpisodeView({
   return (
     <div className="flex flex-col gap-6">
       <StatusTimeline jobs={jobs} processing={processing} />
+
+      {gens.length > 0 && <ApprovalBar gens={gens} />}
 
       {errored && (
         <div className="bg-red-50 border border-red-200 text-danger rounded-xl p-4 text-sm flex items-center justify-between gap-3">
@@ -318,11 +324,41 @@ function SelectStar({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: 
   return (
     <button
       onClick={() => onToggleSelect(gen)}
-      title={gen.selected ? "נבחר (נשמר ללמידה)" : "סמן כנבחר"}
-      className={`shrink-0 text-lg ${gen.selected ? "text-accent" : "text-slate-300 hover:text-accent"}`}
+      title={gen.selected ? "מאושר (נשמר ללמידה)" : "אשר פריט זה"}
+      className={`shrink-0 text-xs rounded-md px-2.5 py-1 border font-medium transition ${
+        gen.selected
+          ? "bg-success text-white border-success"
+          : "border-border text-muted hover:border-accent hover:text-accent"
+      }`}
     >
-      {gen.selected ? "★" : "☆"}
+      {gen.selected ? "✓ מאושר" : "אשר"}
     </button>
+  );
+}
+
+function ApprovalBar({ gens }: { gens: Generation[] }) {
+  const isApproved = (k: GenerationKind) => gens.some((g) => g.kind === k && g.selected);
+  const done = REQUIRED_KINDS.filter(isApproved).length;
+  const allDone = done === REQUIRED_KINDS.length;
+  return (
+    <div className="bg-surface border border-border rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-bold text-sm">{allDone ? "✓ מוכן לפרסום" : "מה צריך לאשר לפני פרסום"}</span>
+        <span className="text-xs text-muted">
+          {done}/{REQUIRED_KINDS.length} אושרו
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {REQUIRED_KINDS.map((k) => (
+          <span
+            key={k}
+            className={`text-xs flex items-center gap-1 ${isApproved(k) ? "text-success font-medium" : "text-muted"}`}
+          >
+            {isApproved(k) ? "✓" : "○"} {KIND_LABELS[k]}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

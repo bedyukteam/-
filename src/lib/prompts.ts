@@ -46,6 +46,20 @@ export function buildTitlesPrompt(transcript: string, ctx: StyleContext) {
   return { system, user };
 }
 
+export function buildThumbnailTitlePrompt(transcript: string, ctx: StyleContext) {
+  const system =
+    BASE_SYSTEM +
+    guidelinesBlock(ctx.languageGuidelines, "שפה") +
+    guidelinesBlock(ctx.visualGuidelines, "וויזואל") +
+    examplesBlock(ctx.examples.thumbnail_title, "כותרות לתמונה ממוזערת");
+  const user =
+    `הצע/י 5 **כותרות לתמונה הממוזערת** (overlay text): טקסט קצר מאוד וקולע, ` +
+    `2-4 מילים, גדול וקריא על תמונה, שמסקרן ומושך קליק. שונה מכותרת הפרק המלאה.\n\n` +
+    `החזר/י JSON: {"thumbnail_titles": ["...", "...", "...", "...", "..."]}\n\n` +
+    `### תמלול:\n${clip(transcript)}`;
+  return { system, user };
+}
+
 export function buildDescriptionPrompt(transcript: string, ctx: StyleContext) {
   const system =
     BASE_SYSTEM +
