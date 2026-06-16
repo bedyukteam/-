@@ -103,7 +103,7 @@ export default function UploadForm() {
             onClick={() => setType(t)}
             className={`flex-1 rounded-lg py-2 text-sm font-medium border transition ${
               type === t
-                ? "bg-accent-soft border-accent text-accent"
+                ? "bg-accent-soft border-accent text-foreground font-semibold"
                 : "border-border text-muted hover:border-accent"
             }`}
           >

@@ -13,7 +13,7 @@ export default function SignOutButton() {
   return (
     <button
       onClick={signOut}
-      className="text-sm text-muted hover:text-foreground transition"
+      className="text-sm text-white/70 hover:text-accent transition"
     >
       התנתקות
     </button>

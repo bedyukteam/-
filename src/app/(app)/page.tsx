@@ -36,7 +36,7 @@ export default async function HomePage() {
       <UploadForm />
 
       <section>
-        <h2 className="font-bold text-lg mb-4">הפרקים שלי</h2>
+        <h2 className="font-bold text-lg mb-4 text-on-navy">הפרקים שלי</h2>
         {list.length === 0 ? (
           <p className="text-muted text-sm bg-surface border border-border rounded-2xl p-6">
             עדיין אין פרקים. העלי פרק ראשון כדי להתחיל ✨

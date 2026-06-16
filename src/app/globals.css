@@ -1,31 +1,44 @@
 @import "tailwindcss";
 
+/* Brand palette — "בדיוק" / יונה משה-דוד */
 :root {
-  --background: #f7f7fb;
-  --surface: #ffffff;
-  --foreground: #1a1a2e;
-  --muted: #6b7280;
-  --border: #e6e6ef;
-  --accent: #6d28d9;
-  --accent-foreground: #ffffff;
-  --accent-soft: #f3eefe;
-  --success: #15803d;
-  --danger: #b91c1c;
+  --background: #324158;        /* navy — page background (dominant) */
+  --panel-dark: #161d2e;        /* dark navy — header / high-contrast panels */
+  --surface: #ffffff;           /* primary light card */
+  --surface-2: #f4f6fa;         /* secondary light card */
+  --foreground: #161d2e;        /* text on light cards (default) */
+  --on-navy: #ffffff;           /* text on navy backgrounds */
+  --muted: #5b6779;             /* secondary text on light cards */
+  --muted-on-navy: #aeb8c9;     /* secondary text on navy */
+  --border: #e4e8f0;            /* light-card borders */
+  --border-navy: rgba(255, 255, 255, 0.14);
+  --accent: #f2da06;            /* brand yellow — CTAs / highlights (sparingly) */
+  --accent-foreground: #161d2e; /* dark navy text on yellow */
+  --accent-soft: rgba(242, 218, 6, 0.16);
+  --success: #3e9468;           /* checkmarks only */
+  --danger: #c0392b;
   --warning: #b45309;
+  --ring-gold: #8c800d;         /* decorative concentric rings only, low opacity */
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-panel-dark: var(--panel-dark);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-foreground: var(--foreground);
+  --color-on-navy: var(--on-navy);
   --color-muted: var(--muted);
+  --color-muted-on-navy: var(--muted-on-navy);
   --color-border: var(--border);
+  --color-border-navy: var(--border-navy);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
+  --color-ring-gold: var(--ring-gold);
   --font-sans: var(--font-heebo), system-ui, sans-serif;
 }
 
@@ -45,5 +58,20 @@ input {
 }
 
 ::selection {
-  background: var(--accent-soft);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Concentric-ring decorative motif (olive-gold, very low opacity).
+   Apply to an absolutely-positioned overlay; set --rx/--ry for the focal corner. */
+.brand-rings {
+  background-image: repeating-radial-gradient(
+    circle at var(--rx, 100%) var(--ry, 0%),
+    transparent 0,
+    transparent 52px,
+    var(--ring-gold) 53px,
+    transparent 54px
+  );
+  opacity: 0.12;
+  pointer-events: none;
 }

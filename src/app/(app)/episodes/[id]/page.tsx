@@ -30,10 +30,10 @@ export default async function EpisodePage({
 
   return (
     <div>
-      <Link href="/" className="text-sm text-muted hover:text-accent">
+      <Link href="/" className="text-sm text-muted-on-navy hover:text-accent">
         ← כל הפרקים
       </Link>
-      <h1 className="text-2xl font-extrabold mt-2 mb-6">
+      <h1 className="text-2xl font-extrabold mt-2 mb-6 text-on-navy">
         {ep.title || ep.source_filename || "פרק"}
       </h1>
       <EpisodeView episodeId={id} initialStatus={ep.status} />

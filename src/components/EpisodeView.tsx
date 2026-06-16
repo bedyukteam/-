@@ -177,14 +177,14 @@ export default function EpisodeView({
       {status !== "ready" && !errored && jobs.length > 0 && (
         <button
           onClick={() => driveChain(nextForce(jobs))}
-          className="self-start text-sm text-muted hover:text-accent"
+          className="self-start text-sm text-muted-on-navy hover:text-accent"
         >
           ▶︎ המשך עיבוד ידנית (אם נתקע)
         </button>
       )}
 
       {gens.length === 0 && processing && (
-        <p className="text-muted text-sm">⏳ מעבד את הפרק… התוצרים יופיעו כאן אוטומטית.</p>
+        <p className="text-muted-on-navy text-sm">⏳ מעבד את הפרק… התוצרים יופיעו כאן אוטומטית.</p>
       )}
 
       {KIND_ORDER.map((kind) => {

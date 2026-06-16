@@ -30,8 +30,8 @@ export default async function SettingsPage() {
   return (
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       <div>
-        <h1 className="text-2xl font-extrabold mb-2">הנחיות סגנון</h1>
-        <p className="text-muted text-sm mb-5">
+        <h1 className="text-2xl font-extrabold mb-2 text-on-navy">הנחיות סגנון</h1>
+        <p className="text-muted-on-navy text-sm mb-5">
           כאן את מלמדת את המערכת באיזו שפה ובאיזה וויזואל להפיק את התוכן. ההנחיות
           נכנסות לכל פרק חדש, יחד עם הדוגמאות שאישרת — וכך הסגנון משתפר מפרק לפרק.
         </p>
@@ -41,8 +41,8 @@ export default async function SettingsPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-bold mb-2">ספריית דוגמאות מאושרות</h2>
-        <p className="text-muted text-sm mb-4">
+        <h2 className="text-lg font-bold mb-2 text-on-navy">ספריית דוגמאות מאושרות</h2>
+        <p className="text-muted-on-navy text-sm mb-4">
           כל פריט שאת מסמנת ככוכב ★ בפרקים נשמר כאן ומשמש את המערכת כדוגמה.
         </p>
         {Object.keys(grouped).length === 0 ? (
