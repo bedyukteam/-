@@ -1,6 +1,6 @@
 import OpenAI, { toFile } from "openai";
 
-export const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+export const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 5 });
 
 /**
  * Transcribe one audio chunk (already extracted to mono/16k and kept under the

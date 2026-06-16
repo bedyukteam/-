@@ -2,7 +2,7 @@
 // Every builder injects the social manager's written guidelines plus a few
 // approved examples (in-context learning) so the house voice improves per episode.
 
-const MAX_TRANSCRIPT_CHARS = 48000;
+const MAX_TRANSCRIPT_CHARS = 32000;
 
 export interface StyleContext {
   languageGuidelines: string;
@@ -32,6 +32,34 @@ const BASE_SYSTEM =
   "כל הפלט בעברית תקנית, חדה ומזמינה. " +
   "כבד/י בקפדנות את הנחיות השפה והוויזואל שמספקת מנהלת הסושיאל. " +
   "החזר/י אך ורק JSON תקין לפי המבנה המבוקש, ללא טקסט נוסף.";
+
+/**
+ * One consolidated call that produces the whole content package — avoids the
+ * per-minute token limit you hit when running 6 generations in parallel.
+ */
+export function buildAllContentPrompt(transcript: string, ctx: StyleContext) {
+  const system =
+    BASE_SYSTEM +
+    guidelinesBlock(ctx.languageGuidelines, "שפה") +
+    guidelinesBlock(ctx.visualGuidelines, "וויזואל") +
+    examplesBlock(ctx.examples.title, "כותרות") +
+    examplesBlock(ctx.examples.thumbnail_title, "כותרות לתמונה") +
+    examplesBlock(ctx.examples.description, "תיאורים") +
+    examplesBlock(ctx.examples.carousel, "קרוסלות") +
+    examplesBlock(ctx.examples.quote, "ציטוטים");
+  const user =
+    `על בסיס תמלול הפרק, הפק/י חבילת תוכן מלאה בעברית. החזר/י JSON יחיד בלבד במבנה:\n` +
+    `{\n` +
+    `  "titles": [5 כותרות לפרק, עד ~70 תווים, מסקרנות ולא clickbait זול],\n` +
+    `  "thumbnail_titles": [5 כותרות קצרות מאוד לתמונה הממוזערת, 2-4 מילים],\n` +
+    `  "description": "תיאור פרק: פסקה פותחת מסקרנת + 4-6 נקודות 'בפרק הזה תגלו' + קריאה לפעולה (שורות חדשות)",\n` +
+    `  "carousels": [5 פריטים {"title": "...", "slides": ["שקופית קצרה", ... 4-6 סה""כ, האחרונה CTA]}],\n` +
+    `  "quotes": [5 ציטוטים חזקים מהתמלול, מנוסחים לפוסט קצר וניתן לשיתוף],\n` +
+    `  "ideas": [6 פריטים {"text": "רעיון לתוכן נוסף", "format": "שורט/ריל/בלוג/סקר/..."}],\n` +
+    `  "thumbnails": [5 פריטים {"concept": "רעיון בקצרה", "overlay_text": "טקסט קצר 2-4 מילים", "visual": "תיאור ויזואלי מפורט באנגלית, 16:9, ניגודיות גבוהה"}]\n` +
+    `}\n\n### תמלול:\n${clip(transcript)}`;
+  return { system, user };
+}
 
 export function buildTitlesPrompt(transcript: string, ctx: StyleContext) {
   const system =

@@ -3,6 +3,7 @@ import { chatJSON, generateThumbnail, transcribeChunk } from "./openai";
 import { extractAudioChunks } from "./audio";
 import {
   StyleContext,
+  buildAllContentPrompt,
   buildTitlesPrompt,
   buildThumbnailTitlePrompt,
   buildDescriptionPrompt,
@@ -140,39 +141,31 @@ export async function runTranscribe(sb: SupabaseClient, episodeId: string): Prom
 
 /* ---------------- Stage 2: text generation ---------------- */
 async function generateAllText(transcript: string, ctx: StyleContext, episodeId: string) {
-  const [titles, thumbTitles, description, carousels, quotes, ideas, thumbs] = await Promise.all([
-    chatJSON<{ titles: string[] }>(...promptArgs(buildTitlesPrompt(transcript, ctx))),
-    chatJSON<{ thumbnail_titles: string[] }>(
-      ...promptArgs(buildThumbnailTitlePrompt(transcript, ctx)),
-    ),
-    chatJSON<{ description: string }>(...promptArgs(buildDescriptionPrompt(transcript, ctx))),
-    chatJSON<{ carousels: { title: string; slides: string[] }[] }>(
-      ...promptArgs(buildCarouselsPrompt(transcript, ctx)),
-    ),
-    chatJSON<{ quotes: string[] }>(...promptArgs(buildQuotesPrompt(transcript, ctx))),
-    chatJSON<{ ideas: { text: string; format?: string }[] }>(
-      ...promptArgs(buildIdeasPrompt(transcript, ctx)),
-    ),
-    chatJSON<{ thumbnails: { concept: string; overlay_text: string; visual: string }[] }>(
-      ...promptArgs(buildThumbnailsPrompt(transcript, ctx)),
-    ),
-  ]);
+  const r = await chatJSON<{
+    titles?: string[];
+    thumbnail_titles?: string[];
+    description?: string;
+    carousels?: { title: string; slides: string[] }[];
+    quotes?: string[];
+    ideas?: { text: string; format?: string }[];
+    thumbnails?: { concept: string; overlay_text: string; visual: string }[];
+  }>(...promptArgs(buildAllContentPrompt(transcript, ctx)));
 
   const rows: GenRow[] = [];
-  for (const t of (titles.titles ?? []).slice(0, 5))
+  for (const t of (r.titles ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "title", content: { text: t } });
-  for (const t of (thumbTitles.thumbnail_titles ?? []).slice(0, 5))
+  for (const t of (r.thumbnail_titles ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "thumbnail_title", content: { text: t } });
-  if (description.description)
-    rows.push({ episode_id: episodeId, kind: "description", content: { text: description.description } });
-  for (const c of (carousels.carousels ?? []).slice(0, 5))
+  if (r.description)
+    rows.push({ episode_id: episodeId, kind: "description", content: { text: r.description } });
+  for (const c of (r.carousels ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "carousel", content: { title: c.title, slides: c.slides } });
-  for (const q of (quotes.quotes ?? []).slice(0, 5))
+  for (const q of (r.quotes ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "quote", content: { text: q } });
-  for (const i of (ideas.ideas ?? []).slice(0, 8))
+  for (const i of (r.ideas ?? []).slice(0, 8))
     rows.push({ episode_id: episodeId, kind: "idea", content: { text: i.text, format: i.format ?? "" } });
 
-  const thumbnails = (thumbs.thumbnails ?? []).slice(0, 5);
+  const thumbnails = (r.thumbnails ?? []).slice(0, 5);
   return { rows, thumbnails };
 }
 
