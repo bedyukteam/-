@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { EpisodeType } from "@/lib/types";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// Compress files above this client-side so the upload fits Supabase's 50MB cap.
+const COMPRESS_OVER_BYTES = 45 * 1024 * 1024;
 
 function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_");
@@ -18,6 +20,7 @@ export default function UploadForm() {
   const [type, setType] = useState<EpisodeType>("episode");
   const [title, setTitle] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
+  const [stage, setStage] = useState<"compress" | "upload" | "process" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,9 +68,24 @@ export default function UploadForm() {
     if (!file) return;
     setBusy(true);
     setError(null);
-    setProgress(0);
     try {
-      const source_path = await upload(file);
+      let toUpload = file;
+      // Heavy file → compress to a compact mp3 in the browser first.
+      if (file.size > COMPRESS_OVER_BYTES) {
+        setStage("compress");
+        setProgress(0);
+        const { compressToAudio } = await import("@/lib/compress");
+        toUpload = await compressToAudio(file, (r) => setProgress(Math.round(r * 100)));
+        if (toUpload.size > 49 * 1024 * 1024) {
+          throw new Error(
+            "גם אחרי דחיסה הקובץ מעל 50MB (פרק ארוך מאוד). נסי קובץ קצר יותר, או שדרוג Supabase Pro.",
+          );
+        }
+      }
+      setStage("upload");
+      setProgress(0);
+      const source_path = await upload(toUpload);
+      setStage("process");
       const res = await fetch("/api/episodes", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -75,7 +93,7 @@ export default function UploadForm() {
           type,
           title,
           source_path,
-          source_filename: file.name,
+          source_filename: toUpload.name,
         }),
       });
       const json = await res.json();
@@ -84,6 +102,7 @@ export default function UploadForm() {
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
+      setStage(null);
       setProgress(null);
     }
   }
@@ -132,7 +151,7 @@ export default function UploadForm() {
           className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
         />
         <span className="text-xs text-muted">
-          ל-MVP: קובץ אודיו עד 24MB מתומלל ישירות. פרק וידאו כבד — בהמשך (חילוץ אודיו אוטומטי).
+          קבצים מעל ~45MB נדחסים אוטומטית בדפדפן ל-mp3 לפני ההעלאה (מומלץ אודיו; וידאו כבד מאוד עלול להיות איטי).
         </span>
       </label>
 
@@ -145,7 +164,13 @@ export default function UploadForm() {
             />
           </div>
           <span className="text-xs text-muted">
-            {progress < 100 ? `מעלה… ${progress}%` : "מעבד את הפרק…"}
+            {stage === "compress"
+              ? progress === 0
+                ? "טוען מנוע דחיסה…"
+                : `מכווץ אודיו בדפדפן… ${progress}%`
+              : stage === "upload"
+                ? `מעלה… ${progress}%`
+                : "מעבד את הפרק…"}
           </span>
         </div>
       )}
