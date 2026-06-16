@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import CoverStudio from "@/components/CoverStudio";
 import { KIND_LABELS, KIND_ORDER, REQUIRED_KINDS, STAGE_LABELS } from "@/lib/constants";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
 
@@ -180,12 +181,32 @@ export default function EpisodeView({
     (gens.find((g) => g.kind === "thumbnail_title" && g.selected)?.content as
       | { text?: string }
       | undefined)?.text ?? "";
+  const thumbTitleOptions = gens
+    .filter((g) => g.kind === "thumbnail_title")
+    .map((g) => (g.content as { text?: string } | undefined)?.text ?? "")
+    .filter(Boolean);
+  const chosenTitle =
+    (gens.find((g) => g.kind === "title" && g.selected)?.content as { text?: string } | undefined)
+      ?.text ?? "";
+  // "Most suitable" cover title: approved thumbnail-title → first proposed → chosen episode title.
+  const proposedCoverTitle = approvedThumbTitle || thumbTitleOptions[0] || chosenTitle;
 
   return (
     <div className="flex flex-col gap-6">
       <StatusTimeline jobs={jobs} processing={processing} />
 
       {gens.length > 0 && <ApprovalBar gens={gens} thumbnailReady={!!thumbnailPath} />}
+
+      {gens.length > 0 && (
+        <CoverStudio
+          episodeId={episodeId}
+          proposedTitle={proposedCoverTitle}
+          titleOptions={thumbTitleOptions}
+          thumbnailPath={thumbnailPath}
+          supabase={supabase}
+          onChange={load}
+        />
+      )}
 
       {gens.length > 0 && (
         <FinalThumbnailPanel
@@ -447,7 +468,10 @@ function FinalThumbnailPanel({
 
   return (
     <section className="bg-surface border border-border rounded-2xl p-5">
-      <h3 className="font-bold mb-3">תמונה ממוזערת סופית (Canva)</h3>
+      <h3 className="font-bold mb-1">חלופה ידנית — Canva / העלאת קובץ</h3>
+      <p className="text-xs text-muted mb-3">
+        רק אם רוצים קאבר שונה מהאוטומטי: עורכים ב-Canva ומעלים PNG. גם זה ידרוס את הקאבר שיעלה ליוטיוב.
+      </p>
 
       {approvedTitle ? (
         <div className="bg-surface-2 rounded-lg p-3 mb-3 flex items-center justify-between gap-2">
