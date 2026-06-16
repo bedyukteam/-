@@ -1,0 +1,471 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { KIND_LABELS, KIND_ORDER, STAGE_LABELS } from "@/lib/constants";
+import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
+
+const TERMINAL = new Set(["ready"]);
+
+// Next stage to auto-run (skips stages already running or errored).
+function nextAuto(jobs: Job[]): JobStage | null {
+  const s = (st: JobStage) => jobs.find((j) => j.stage === st)?.status;
+  const t = s("transcribe");
+  if (!t) return "transcribe";
+  if (t !== "done") return null;
+  const g = s("generate");
+  if (!g) return "generate";
+  if (g !== "done") return null;
+  const h = s("thumbnails");
+  if (!h) return "thumbnails";
+  return null;
+}
+
+// First stage that is not done yet (used by the manual "continue/retry" button).
+function nextForce(jobs: Job[]): JobStage | null {
+  const s = (st: JobStage) => jobs.find((j) => j.stage === st)?.status;
+  if (s("transcribe") !== "done") return "transcribe";
+  if (s("generate") !== "done") return "generate";
+  if (s("thumbnails") !== "done") return "thumbnails";
+  return null;
+}
+
+export default function EpisodeView({
+  episodeId,
+  initialStatus,
+}: {
+  episodeId: string;
+  initialStatus: string;
+}) {
+  const supabase = useRef(createClient()).current;
+  const [status, setStatus] = useState(initialStatus);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [transcript, setTranscript] = useState<Transcript | null>(null);
+  const [gens, setGens] = useState<Generation[]>([]);
+  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [busyKind, setBusyKind] = useState<GenerationKind | null>(null);
+  const drivingRef = useRef(false);
+
+  const load = useCallback(async () => {
+    const [{ data: ep }, { data: j }, { data: tr }, { data: g }] = await Promise.all([
+      supabase.from("episodes").select("status").eq("id", episodeId).single(),
+      supabase.from("jobs").select("*").eq("episode_id", episodeId).order("created_at"),
+      supabase.from("transcripts").select("*").eq("episode_id", episodeId).maybeSingle(),
+      supabase.from("generations").select("*").eq("episode_id", episodeId).order("created_at"),
+    ]);
+    if (ep) setStatus(ep.status);
+    setJobs((j ?? []) as Job[]);
+    setTranscript((tr as Transcript) ?? null);
+    const gg = (g ?? []) as Generation[];
+    setGens(gg);
+
+    const thumbs = gg.filter((x) => x.kind === "thumbnail" && x.image_path);
+    if (thumbs.length) {
+      const entries = await Promise.all(
+        thumbs.map(async (x) => {
+          const { data } = await supabase.storage
+            .from("media")
+            .createSignedUrl(x.image_path as string, 3600);
+          return [x.id, data?.signedUrl ?? ""] as const;
+        }),
+      );
+      setThumbUrls(Object.fromEntries(entries.filter(([, u]) => u)));
+    }
+  }, [episodeId, supabase]);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(() => {
+      setStatus((s) => {
+        if (!TERMINAL.has(s)) load();
+        return s;
+      });
+    }, 3000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  // Drive the pipeline one bounded request per stage, following `next` until done.
+  const driveChain = useCallback(
+    async (startStage: JobStage | null) => {
+      if (!startStage || drivingRef.current) return;
+      drivingRef.current = true;
+      try {
+        let stage: JobStage | null = startStage;
+        while (stage) {
+          const res = await fetch(`/api/episodes/${episodeId}/process-stage`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stage }),
+          });
+          const json: { ok?: boolean; next?: JobStage | null } = await res
+            .json()
+            .catch(() => ({ ok: false }));
+          await load();
+          if (!json.ok) break;
+          stage = json.next ?? null;
+        }
+      } finally {
+        drivingRef.current = false;
+      }
+    },
+    [episodeId, load],
+  );
+
+  // Auto-start / auto-resume processing (but pause on errors for manual retry).
+  useEffect(() => {
+    if (status === "ready") return;
+    if (jobs.some((j) => j.status === "error")) return;
+    const start = nextAuto(jobs);
+    if (start) driveChain(start);
+  }, [jobs, status, driveChain]);
+
+  async function regenerate(kind: GenerationKind, feedback?: string) {
+    setBusyKind(kind);
+    try {
+      await fetch(`/api/episodes/${episodeId}/regenerate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind, feedback }),
+      });
+      await load();
+    } finally {
+      setBusyKind(null);
+    }
+  }
+
+  async function toggleSelect(gen: Generation) {
+    const next = !gen.selected;
+    setGens((gs) => gs.map((g) => (g.id === gen.id ? { ...g, selected: next } : g)));
+    await fetch(`/api/generations/${gen.id}/select`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ selected: next }),
+    });
+  }
+
+  async function saveEdit(gen: Generation, content: Record<string, unknown>) {
+    setGens((gs) => gs.map((g) => (g.id === gen.id ? { ...g, content } : g)));
+    await fetch(`/api/generations/${gen.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  const byKind = (k: GenerationKind) => gens.filter((g) => g.kind === k);
+  const errored = jobs.find((j) => j.status === "error");
+  const processing = status !== "ready" && !errored;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <StatusTimeline jobs={jobs} processing={processing} />
+
+      {errored && (
+        <div className="bg-red-50 border border-red-200 text-danger rounded-xl p-4 text-sm flex items-center justify-between gap-3">
+          <span>
+            <strong>שגיאה בשלב {STAGE_LABELS[errored.stage]}:</strong> {errored.error}
+          </span>
+          <button
+            onClick={() => driveChain(nextForce(jobs))}
+            className="shrink-0 bg-danger text-white rounded-lg px-3 py-1.5 text-sm hover:opacity-90"
+          >
+            נסה שוב
+          </button>
+        </div>
+      )}
+
+      {status !== "ready" && !errored && jobs.length > 0 && (
+        <button
+          onClick={() => driveChain(nextForce(jobs))}
+          className="self-start text-sm text-muted hover:text-accent"
+        >
+          ▶︎ המשך עיבוד ידנית (אם נתקע)
+        </button>
+      )}
+
+      {gens.length === 0 && processing && (
+        <p className="text-muted text-sm">⏳ מעבד את הפרק… התוצרים יופיעו כאן אוטומטית.</p>
+      )}
+
+      {KIND_ORDER.map((kind) => {
+        const items = byKind(kind);
+        if (items.length === 0) return null;
+        return (
+          <Section
+            key={kind}
+            kind={kind}
+            items={items}
+            thumbUrls={thumbUrls}
+            busy={busyKind === kind}
+            onRegenerate={regenerate}
+            onToggleSelect={toggleSelect}
+            onSaveEdit={saveEdit}
+          />
+        );
+      })}
+
+      {transcript && <TranscriptBlock transcript={transcript} />}
+    </div>
+  );
+}
+
+/* ---------- status timeline ---------- */
+function StatusTimeline({ jobs, processing }: { jobs: Job[]; processing: boolean }) {
+  const stages: { key: string; label: string }[] = [
+    { key: "transcribe", label: STAGE_LABELS.transcribe },
+    { key: "generate", label: STAGE_LABELS.generate },
+    { key: "thumbnails", label: STAGE_LABELS.thumbnails },
+  ];
+  const statusOf = (k: string) => jobs.find((j) => j.stage === k)?.status;
+  const icon = (s?: string) =>
+    s === "done" ? "✅" : s === "running" ? "⏳" : s === "error" ? "❌" : "○";
+  return (
+    <div className="bg-surface border border-border rounded-2xl p-4 flex flex-wrap gap-4 items-center">
+      {stages.map((st) => (
+        <div key={st.key} className="flex items-center gap-2 text-sm">
+          <span>{icon(statusOf(st.key))}</span>
+          <span className={statusOf(st.key) === "running" ? "text-accent font-medium" : ""}>
+            {st.label}
+          </span>
+        </div>
+      ))}
+      {processing && <span className="text-xs text-muted">מתעדכן אוטומטית…</span>}
+    </div>
+  );
+}
+
+/* ---------- section ---------- */
+function Section({
+  kind,
+  items,
+  thumbUrls,
+  busy,
+  onRegenerate,
+  onToggleSelect,
+  onSaveEdit,
+}: {
+  kind: GenerationKind;
+  items: Generation[];
+  thumbUrls: Record<string, string>;
+  busy: boolean;
+  onRegenerate: (k: GenerationKind, fb?: string) => void;
+  onToggleSelect: (g: Generation) => void;
+  onSaveEdit: (g: Generation, c: Record<string, unknown>) => void;
+}) {
+  const [fbOpen, setFbOpen] = useState(false);
+  const [fb, setFb] = useState("");
+
+  return (
+    <section className="bg-surface border border-border rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold">{KIND_LABELS[kind]}</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFbOpen((v) => !v)}
+            className="text-xs text-muted hover:text-accent"
+          >
+            רענון עם הערה
+          </button>
+          <button
+            onClick={() => onRegenerate(kind)}
+            disabled={busy}
+            className="text-sm border border-border rounded-lg px-3 py-1.5 hover:border-accent disabled:opacity-50 transition"
+          >
+            {busy ? "מרענן…" : "🔄 רענן"}
+          </button>
+        </div>
+      </div>
+
+      {fbOpen && (
+        <div className="mb-3 flex gap-2">
+          <input
+            value={fb}
+            onChange={(e) => setFb(e.target.value)}
+            placeholder="מה לשפר? (למשל: קצר יותר, פחות שיווקי, יותר הומור)"
+            className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent"
+          />
+          <button
+            onClick={() => {
+              onRegenerate(kind, fb);
+              setFbOpen(false);
+              setFb("");
+            }}
+            disabled={busy}
+            className="bg-accent text-accent-foreground rounded-lg px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            שלח
+          </button>
+        </div>
+      )}
+
+      <div className={kind === "thumbnail" ? "grid sm:grid-cols-2 gap-3" : "flex flex-col gap-2"}>
+        {items.map((g) =>
+          kind === "thumbnail" ? (
+            <ThumbnailCard key={g.id} gen={g} url={thumbUrls[g.id]} onToggleSelect={onToggleSelect} />
+          ) : kind === "carousel" ? (
+            <CarouselCard key={g.id} gen={g} onToggleSelect={onToggleSelect} />
+          ) : (
+            <TextItem key={g.id} gen={g} editable={kind !== "idea"} onToggleSelect={onToggleSelect} onSaveEdit={onSaveEdit} />
+          ),
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ---------- item renderers ---------- */
+function SelectStar({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: (g: Generation) => void }) {
+  return (
+    <button
+      onClick={() => onToggleSelect(gen)}
+      title={gen.selected ? "נבחר (נשמר ללמידה)" : "סמן כנבחר"}
+      className={`shrink-0 text-lg ${gen.selected ? "text-accent" : "text-slate-300 hover:text-accent"}`}
+    >
+      {gen.selected ? "★" : "☆"}
+    </button>
+  );
+}
+
+function CopyBtn({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(text);
+        setDone(true);
+        setTimeout(() => setDone(false), 1200);
+      }}
+      className="shrink-0 text-xs text-muted hover:text-accent"
+    >
+      {done ? "הועתק ✓" : "העתק"}
+    </button>
+  );
+}
+
+function TextItem({
+  gen,
+  editable,
+  onToggleSelect,
+  onSaveEdit,
+}: {
+  gen: Generation;
+  editable: boolean;
+  onToggleSelect: (g: Generation) => void;
+  onSaveEdit: (g: Generation, c: Record<string, unknown>) => void;
+}) {
+  const text = (gen.content.text as string) ?? "";
+  const format = gen.content.format as string | undefined;
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(text);
+
+  return (
+    <div className={`rounded-xl border p-3 flex gap-3 ${gen.selected ? "border-accent bg-accent-soft/40" : "border-border"}`}>
+      <SelectStar gen={gen} onToggleSelect={onToggleSelect} />
+      <div className="flex-1 min-w-0">
+        {editing ? (
+          <textarea
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            rows={Math.max(2, Math.ceil(val.length / 60))}
+            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm outline-none focus:border-accent"
+          />
+        ) : (
+          <p className="text-sm whitespace-pre-wrap leading-relaxed">{text}</p>
+        )}
+        {format && <span className="inline-block mt-1 text-[11px] bg-slate-100 text-muted rounded px-1.5 py-0.5">{format}</span>}
+      </div>
+      <div className="flex flex-col items-end gap-1">
+        <CopyBtn text={text} />
+        {editable &&
+          (editing ? (
+            <button
+              onClick={() => {
+                onSaveEdit(gen, { ...gen.content, text: val });
+                setEditing(false);
+              }}
+              className="text-xs text-accent"
+            >
+              שמור
+            </button>
+          ) : (
+            <button onClick={() => setEditing(true)} className="text-xs text-muted hover:text-accent">
+              ערוך
+            </button>
+          ))}
+      </div>
+    </div>
+  );
+}
+
+function CarouselCard({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: (g: Generation) => void }) {
+  const title = (gen.content.title as string) ?? "";
+  const slides = (gen.content.slides as string[]) ?? [];
+  const copyText = [title, ...slides.map((s, i) => `${i + 1}. ${s}`)].join("\n");
+  return (
+    <div className={`rounded-xl border p-3 flex gap-3 ${gen.selected ? "border-accent bg-accent-soft/40" : "border-border"}`}>
+      <SelectStar gen={gen} onToggleSelect={onToggleSelect} />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm mb-1">{title}</p>
+        <ol className="list-decimal pr-4 text-sm text-muted flex flex-col gap-0.5">
+          {slides.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ol>
+      </div>
+      <CopyBtn text={copyText} />
+    </div>
+  );
+}
+
+function ThumbnailCard({
+  gen,
+  url,
+  onToggleSelect,
+}: {
+  gen: Generation;
+  url?: string;
+  onToggleSelect: (g: Generation) => void;
+}) {
+  const concept = (gen.content.concept as string) ?? "";
+  const overlay = (gen.content.overlay_text as string) ?? "";
+  return (
+    <div className={`rounded-xl border overflow-hidden ${gen.selected ? "border-accent" : "border-border"}`}>
+      <div className="aspect-video bg-slate-100 grid place-items-center text-muted text-xs relative">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt={concept} className="w-full h-full object-cover" />
+        ) : (
+          <span>⏳ מייצר תמונה…</span>
+        )}
+        {overlay && (
+          <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[11px] px-1.5 py-0.5 rounded">
+            {overlay}
+          </span>
+        )}
+      </div>
+      <div className="p-3 flex items-start justify-between gap-2">
+        <p className="text-sm flex-1">{concept}</p>
+        <div className="flex flex-col items-end gap-1">
+          <SelectStar gen={gen} onToggleSelect={onToggleSelect} />
+          <CopyBtn text={`${concept}\n${overlay}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TranscriptBlock({ transcript }: { transcript: Transcript }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="bg-surface border border-border rounded-2xl p-5">
+      <button onClick={() => setOpen((v) => !v)} className="font-bold flex items-center gap-2">
+        תמלול מלא {open ? "▲" : "▼"}
+      </button>
+      {open && (
+        <p className="mt-3 text-sm whitespace-pre-wrap leading-relaxed text-muted max-h-96 overflow-y-auto">
+          {transcript.text}
+        </p>
+      )}
+    </section>
+  );
+}
