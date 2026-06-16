@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import SignOutButton from "@/components/SignOutButton";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -6,8 +7,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 bg-panel-dark border-b border-border-navy">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="font-extrabold text-accent text-lg">
-            🎙️ Podcast Studio
+          <Link
+            href="/"
+            className="inline-flex items-center bg-white rounded-lg px-2.5 py-1"
+          >
+            <Image
+              src="/logo.png"
+              alt="בדיוק"
+              width={500}
+              height={500}
+              priority
+              className="h-8 w-auto"
+            />
           </Link>
           <nav className="flex items-center gap-5 text-sm text-on-navy">
             <Link href="/" className="hover:text-accent transition">

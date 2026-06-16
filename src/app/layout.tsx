@@ -9,7 +9,7 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "Podcast Studio — אולפן התוכן",
+  title: "בדיוק — אולפן התוכן",
   description:
     "מעלים פרק, מקבלים חבילת תוכן מוכנה: תמלול, כותרות, תמונות ממוזערות, תיאור, קרוסלות וציטוטים.",
 };

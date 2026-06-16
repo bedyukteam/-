@@ -1,3 +1,4 @@
+import Image from "next/image";
 import LoginForm from "@/components/LoginForm";
 
 export default function LoginPage() {
@@ -6,8 +7,17 @@ export default function LoginPage() {
       <div className="brand-rings absolute inset-0" />
       <div className="relative w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-3xl font-extrabold text-accent">🎙️ Podcast Studio</div>
-          <p className="text-muted-on-navy mt-2 text-sm">
+          <div className="inline-flex bg-white rounded-2xl px-6 py-3 shadow-lg">
+            <Image
+              src="/logo.png"
+              alt="בדיוק"
+              width={500}
+              height={500}
+              priority
+              className="h-28 w-auto"
+            />
+          </div>
+          <p className="text-muted-on-navy mt-4 text-sm">
             אולפן התוכן — מעלים פרק, מקבלים חבילה מוכנה
           </p>
         </div>
