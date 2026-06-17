@@ -73,6 +73,11 @@ export default function CoverStudio({
   const [refY, setRefY] = useState(0.35); // vertical focal point (0..1) — favour the face
   const refInputRef = useRef<HTMLInputElement>(null);
 
+  // Title size + position, adjustable live from the UI.
+  const [titleSize, setTitleSize] = useState(100); // max font px (auto-fit shrinks below this)
+  const [titleDX, setTitleDX] = useState(0); // horizontal nudge from the centered position
+  const [titleDY, setTitleDY] = useState(0); // vertical nudge
+
   // Cover title follows the approved/proposed title (updates when it changes).
   // Done during render (not in an effect) per the React state-from-prop pattern.
   if (proposedTitle && proposedTitle !== prevProposed.current) {
@@ -166,7 +171,7 @@ export default function CoverStudio({
     ctx.textBaseline = "middle";
     ctx.direction = "rtl";
 
-    let size = 100;
+    let size = titleSize;
     let lines: string[] = [];
     for (; size >= 34; size -= 2) {
       ctx.font = `800 ${size}px ${FONT_FAMILY}, Heebo, sans-serif`;
@@ -179,12 +184,12 @@ export default function CoverStudio({
 
     const lineH = size * 1.16;
     const totalH = lines.length * lineH;
-    let y = cover.cy - totalH / 2 + lineH / 2;
+    let y = cover.cy + titleDY - totalH / 2 + lineH / 2;
     for (const line of lines) {
-      ctx.fillText(line, cover.cx, y);
+      ctx.fillText(line, cover.cx + titleDX, y);
       y += lineH;
     }
-  }, [bg, title, covers, bgIndex, refImg, refScale, refX, refY]);
+  }, [bg, title, covers, bgIndex, refImg, refScale, refX, refY, titleSize, titleDX, titleDY]);
 
   useEffect(() => {
     if (fontReady) draw();
@@ -380,6 +385,56 @@ export default function CoverStudio({
         placeholder="כתבי כאן כל טקסט — הקאבר יתעדכן מיד בפונט של המותג"
         className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm resize-none focus:outline-none focus:border-accent mb-2"
       />
+
+      {/* Title size + position — live adjustment */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-2 max-w-xl">
+        <label className="text-xs text-muted flex flex-col gap-1">
+          גודל כותרת
+          <input
+            type="range"
+            min="48"
+            max="140"
+            step="2"
+            value={titleSize}
+            onChange={(e) => setTitleSize(Number(e.target.value))}
+          />
+        </label>
+        <label className="text-xs text-muted flex flex-col gap-1">
+          מיקום אופקי
+          <input
+            type="range"
+            min="-400"
+            max="400"
+            step="5"
+            value={titleDX}
+            onChange={(e) => setTitleDX(Number(e.target.value))}
+          />
+        </label>
+        <label className="text-xs text-muted flex flex-col gap-1">
+          מיקום אנכי
+          <input
+            type="range"
+            min="-300"
+            max="300"
+            step="5"
+            value={titleDY}
+            onChange={(e) => setTitleDY(Number(e.target.value))}
+          />
+        </label>
+      </div>
+      {(titleSize !== 100 || titleDX !== 0 || titleDY !== 0) && (
+        <button
+          type="button"
+          onClick={() => {
+            setTitleSize(100);
+            setTitleDX(0);
+            setTitleDY(0);
+          }}
+          className="text-xs text-muted hover:text-accent mb-3"
+        >
+          ↺ אפס גודל ומיקום
+        </button>
+      )}
 
       {/* Quick-pick from the proposed thumbnail titles */}
       {titleOptions.length > 0 && (
