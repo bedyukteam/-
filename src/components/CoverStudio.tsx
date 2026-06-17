@@ -26,18 +26,22 @@ function photoRect(side: string): { x: number; y: number; w: number; h: number }
 }
 
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
-  let cur = "";
-  for (const w of words) {
-    const tentative = cur ? `${cur} ${w}` : w;
-    if (ctx.measureText(tentative).width <= maxW || !cur) cur = tentative;
-    else {
-      lines.push(cur);
-      cur = w;
+  // Honour manual line breaks (Enter), then word-wrap each line by width.
+  for (const para of text.split("\n")) {
+    const words = para.split(/[ \t]+/).filter(Boolean);
+    if (words.length === 0) continue;
+    let cur = "";
+    for (const w of words) {
+      const tentative = cur ? `${cur} ${w}` : w;
+      if (ctx.measureText(tentative).width <= maxW || !cur) cur = tentative;
+      else {
+        lines.push(cur);
+        cur = w;
+      }
     }
+    if (cur) lines.push(cur);
   }
-  if (cur) lines.push(cur);
   return lines;
 }
 
