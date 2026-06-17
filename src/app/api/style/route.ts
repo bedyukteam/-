@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Save the channel's language + visual guidelines (the "teach" screen).
+// Save the channel's language guidelines + Canva link (the "teach" screen).
 export async function POST(req: Request) {
   const supabase = await createClient();
   const {
@@ -9,9 +9,8 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { language_guidelines, visual_guidelines, canva_covers_url } = (await req.json()) as {
+  const { language_guidelines, canva_covers_url } = (await req.json()) as {
     language_guidelines: string;
-    visual_guidelines: string;
     canva_covers_url?: string;
   };
   const channelId = process.env.NEXT_PUBLIC_DEFAULT_CHANNEL_ID!;
@@ -20,7 +19,6 @@ export async function POST(req: Request) {
     .from("style_profiles")
     .update({
       language_guidelines: language_guidelines ?? "",
-      visual_guidelines: visual_guidelines ?? "",
       canva_covers_url: canva_covers_url ?? "",
       updated_at: new Date().toISOString(),
     })
