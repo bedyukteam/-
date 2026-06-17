@@ -166,7 +166,7 @@ export default function CoverStudio({
     ctx.textBaseline = "middle";
     ctx.direction = "rtl";
 
-    let size = 132;
+    let size = 100;
     let lines: string[] = [];
     for (; size >= 34; size -= 2) {
       ctx.font = `800 ${size}px ${FONT_FAMILY}, Heebo, sans-serif`;
