@@ -1,42 +1,42 @@
 [
 {
 "file": "covers/bg01.jpg",
-"cx": 673,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
+"cx": 1078,
+"cy": 486,
+"maxW": 887,
+"maxH": 360,
 "side": "none"
 },
 {
 "file": "covers/bg06.jpg",
-"cx": 660,
-"cy": 440,
-"maxW": 1180,
-"maxH": 420,
+"cx": 1144,
+"cy": 486,
+"maxW": 1018,
+"maxH": 360,
 "side": "none"
 },
 {
 "file": "covers/bg08.jpg",
-"cx": 699,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
+"cx": 1079,
+"cy": 486,
+"maxW": 889,
+"maxH": 360,
 "side": "none"
 },
 {
 "file": "covers/bg16.jpg",
-"cx": 846,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
+"cx": 991,
+"cy": 486,
+"maxW": 712,
+"maxH": 360,
 "side": "none"
 },
 {
 "file": "covers/bg22.jpg",
-"cx": 933,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
+"cx": 1079,
+"cy": 486,
+"maxW": 888,
+"maxH": 360,
 "side": "none"
 }
 ]
