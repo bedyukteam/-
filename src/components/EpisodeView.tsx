@@ -16,9 +16,6 @@ function nextAuto(jobs: Job[]): JobStage | null {
   if (t !== "done") return null;
   const g = s("generate");
   if (!g) return "generate";
-  if (g !== "done") return null;
-  const h = s("thumbnails");
-  if (!h) return "thumbnails";
   return null;
 }
 
@@ -27,7 +24,6 @@ function nextForce(jobs: Job[]): JobStage | null {
   const s = (st: JobStage) => jobs.find((j) => j.stage === st)?.status;
   if (s("transcribe") !== "done") return "transcribe";
   if (s("generate") !== "done") return "generate";
-  if (s("thumbnails") !== "done") return "thumbnails";
   return null;
 }
 
@@ -275,7 +271,6 @@ function StatusTimeline({ jobs, processing }: { jobs: Job[]; processing: boolean
   const stages: { key: string; label: string }[] = [
     { key: "transcribe", label: STAGE_LABELS.transcribe },
     { key: "generate", label: STAGE_LABELS.generate },
-    { key: "thumbnails", label: STAGE_LABELS.thumbnails },
   ];
   const statusOf = (k: string) => jobs.find((j) => j.stage === k)?.status;
   const icon = (s?: string) =>

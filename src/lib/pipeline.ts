@@ -181,15 +181,13 @@ export async function runGenerate(sb: SupabaseClient, episodeId: string): Promis
   const job = await startJob(sb, episodeId, "generate");
   try {
     const ctx = await getStyleContext(sb, ep.channel_id as string);
-    const { rows, thumbnails } = await generateAllText(tr.text as string, ctx, episodeId);
+    const { rows } = await generateAllText(tr.text as string, ctx, episodeId);
     await sb.from("generations").delete().eq("episode_id", episodeId);
     if (rows.length) await sb.from("generations").insert(rows);
-    if (thumbnails.length)
-      await sb
-        .from("generations")
-        .insert(thumbnails.map((t) => ({ episode_id: episodeId, kind: "thumbnail", content: t })));
     await finishJob(sb, job);
-    return "thumbnails";
+    // AI thumbnail images are disabled (superseded by the cover studio) — finish here.
+    await setEpisodeStatus(sb, episodeId, "ready");
+    return null;
   } catch (e) {
     await finishJob(sb, job, (e as Error).message);
     await setEpisodeStatus(sb, episodeId, "error");
@@ -256,7 +254,6 @@ export async function runStage(
 export async function processEpisode(sb: SupabaseClient, episodeId: string) {
   await runTranscribe(sb, episodeId);
   await runGenerate(sb, episodeId);
-  await runThumbnails(sb, episodeId);
 }
 
 /* ---------------- Refresh a single kind ---------------- */
