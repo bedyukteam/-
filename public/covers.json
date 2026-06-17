@@ -8,38 +8,6 @@
 "side": "none"
 },
 {
-"file": "covers/bg02.jpg",
-"cx": 706,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "right"
-},
-{
-"file": "covers/bg03.jpg",
-"cx": 994,
-"cy": 493,
-"maxW": 1180,
-"maxH": 420,
-"side": "left"
-},
-{
-"file": "covers/bg04.jpg",
-"cx": 730,
-"cy": 440,
-"maxW": 1180,
-"maxH": 420,
-"side": "right"
-},
-{
-"file": "covers/bg05.jpg",
-"cx": 741,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
 "file": "covers/bg06.jpg",
 "cx": 660,
 "cy": 440,
@@ -48,72 +16,8 @@
 "side": "none"
 },
 {
-"file": "covers/bg07.jpg",
-"cx": 772,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
 "file": "covers/bg08.jpg",
 "cx": 699,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg09.jpg",
-"cx": 867,
-"cy": 431,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg10.jpg",
-"cx": 780,
-"cy": 410,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg11.jpg",
-"cx": 942,
-"cy": 394,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg12.jpg",
-"cx": 837,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg13.jpg",
-"cx": 753,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "right"
-},
-{
-"file": "covers/bg14.jpg",
-"cx": 684,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg15.jpg",
-"cx": 744,
 "cy": 442,
 "maxW": 1180,
 "maxH": 420,
@@ -128,104 +32,8 @@
 "side": "none"
 },
 {
-"file": "covers/bg17.jpg",
-"cx": 970,
-"cy": 479,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg18.jpg",
-"cx": 771,
-"cy": 443,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg19.jpg",
-"cx": 739,
-"cy": 451,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg20.jpg",
-"cx": 804,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "right"
-},
-{
-"file": "covers/bg21.jpg",
-"cx": 999,
-"cy": 434,
-"maxW": 1177,
-"maxH": 420,
-"side": "none"
-},
-{
 "file": "covers/bg22.jpg",
 "cx": 933,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg23.jpg",
-"cx": 732,
-"cy": 479,
-"maxW": 1180,
-"maxH": 420,
-"side": "none"
-},
-{
-"file": "covers/bg26.jpg",
-"cx": 900,
-"cy": 358,
-"maxW": 1180,
-"maxH": 187,
-"side": "right"
-},
-{
-"file": "covers/bg29.jpg",
-"cx": 991,
-"cy": 500,
-"maxW": 1180,
-"maxH": 410,
-"side": "left"
-},
-{
-"file": "covers/bg32.jpg",
-"cx": 816,
-"cy": 442,
-"maxW": 1180,
-"maxH": 420,
-"side": "right"
-},
-{
-"file": "covers/bg35.jpg",
-"cx": 766,
-"cy": 473,
-"maxW": 1008,
-"maxH": 345,
-"side": "right"
-},
-{
-"file": "covers/bg38.jpg",
-"cx": 816,
-"cy": 526,
-"maxW": 1180,
-"maxH": 367,
-"side": "none"
-},
-{
-"file": "covers/bg41.jpg",
-"cx": 1213,
 "cy": 442,
 "maxW": 1180,
 "maxH": 420,
