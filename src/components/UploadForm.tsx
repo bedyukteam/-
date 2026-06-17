@@ -13,28 +13,14 @@ function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_");
 }
 
-/** Strip SRT/VTT cue numbers, timestamps and tags → plain transcript text. */
-function srtToText(srt: string): string {
-  return srt
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && l !== "WEBVTT" && !/^\d+$/.test(l) && !l.includes("-->"))
-    .join(" ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 const MODES: { key: InputMode; label: string }[] = [
   { key: "transcript", label: "הדבקת תמלול" },
-  { key: "srt", label: "קובץ כתוביות (SRT)" },
   { key: "audio", label: "קובץ אודיו" },
 ];
 
 export default function UploadForm() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const srtRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<InputMode>("transcript");
   const [type, setType] = useState<EpisodeType>("episode");
   const [title, setTitle] = useState("");
@@ -99,16 +85,6 @@ export default function UploadForm() {
         }
         setStage("process");
         await createEpisode({ transcript_text: transcript, input_mode: "transcript" });
-        return;
-      }
-
-      if (mode === "srt") {
-        const f = srtRef.current?.files?.[0];
-        if (!f) throw new Error("בחרי קובץ SRT/VTT.");
-        const text = srtToText(await f.text());
-        if (text.length < 40) throw new Error("לא הצלחתי לחלץ טקסט מהקובץ.");
-        setStage("process");
-        await createEpisode({ transcript_text: text, input_mode: "srt" });
         return;
       }
 
@@ -202,19 +178,6 @@ export default function UploadForm() {
           <span className="text-xs text-muted">
             הדרך המהירה: ב-Veed מסמנים את התמלול, מעתיקים (Cmd+C) ומדביקים כאן.
           </span>
-        </label>
-      )}
-
-      {mode === "srt" && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">קובץ כתוביות מ-Veed</span>
-          <input
-            ref={srtRef}
-            type="file"
-            accept=".srt,.vtt,text/plain"
-            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
-          />
-          <span className="text-xs text-muted">ב-Veed: Export → Subtitles (SRT) ואז העלי כאן.</span>
         </label>
       )}
 
