@@ -463,6 +463,22 @@ function FinalThumbnailPanel({
     }
   }
 
+  async function deleteThumb() {
+    if (!thumbnailPath) return;
+    if (!window.confirm("למחוק את התמונה הממוזערת? אפשר יהיה לאשר קאבר חדש או להעלות אחר.")) return;
+    setBusy(true);
+    try {
+      await supabase.storage
+        .from("media")
+        .remove([thumbnailPath])
+        .catch(() => {});
+      await supabase.from("episodes").update({ thumbnail_path: null }).eq("id", episodeId);
+      await onChange();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="bg-surface border border-border rounded-2xl p-5">
       <h3 className="font-bold mb-1">חלופה ידנית — Canva / העלאת קובץ</h3>
@@ -511,6 +527,16 @@ function FinalThumbnailPanel({
         >
           {busy ? "מעלה…" : thumbnailPath ? "החלף תמונה" : "העלה תמונה ממוזערת סופית"}
         </button>
+        {thumbnailPath && (
+          <button
+            type="button"
+            onClick={deleteThumb}
+            disabled={busy}
+            className="border border-border rounded-lg px-4 py-2 text-sm text-danger hover:border-danger disabled:opacity-50"
+          >
+            🗑 מחק תמונה
+          </button>
+        )}
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
       </div>
 
