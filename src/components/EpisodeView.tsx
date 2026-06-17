@@ -247,6 +247,8 @@ export default function EpisodeView({
       )}
 
       {KIND_ORDER.map((kind) => {
+        // AI thumbnail images are superseded by the cover studio — hide that section.
+        if (kind === "thumbnail") return null;
         const items = byKind(kind);
         if (items.length === 0) return null;
         return (
