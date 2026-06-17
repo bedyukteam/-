@@ -8,7 +8,8 @@ import type { createClient } from "@/lib/supabase/client";
 // navy title-zone, then exports a 1920×1080 PNG.
 const COVER_W = 1920;
 const COVER_H = 1080;
-const FONT_FAMILY = "HeeboCover";
+const FONT_FAMILY = "RubikCover";
+const FONT_URL = "/fonts/rubik-800.woff2";
 // Brand navy — used to erase the template's built-in photo before dropping in
 // an uploaded reference image, so the old photo never peeks out behind it.
 const BRAND_NAVY = "#324158";
@@ -92,7 +93,7 @@ export default function CoverStudio({
   // Load the brand font once.
   useEffect(() => {
     let cancelled = false;
-    const font = new FontFace(FONT_FAMILY, "url(/fonts/heebo-800.woff2)", { weight: "800" });
+    const font = new FontFace(FONT_FAMILY, `url(${FONT_URL})`, { weight: "800" });
     font
       .load()
       .then((f) => {
