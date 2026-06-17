@@ -13,24 +13,14 @@ const FONT_FAMILY = "HeeboCover";
 // an uploaded reference image, so the old photo never peeks out behind it.
 const BRAND_NAVY = "#324158";
 
-type PhotoRect = { x: number; y: number; w: number; h: number };
-type Cover = {
-  file: string;
-  cx: number;
-  cy: number;
-  maxW: number;
-  maxH: number;
-  side: string;
-  // Exact pixel box of the template's built-in photo, when known (from covers.json).
-  photo?: PhotoRect;
-};
+type Cover = { file: string; cx: number; cy: number; maxW: number; maxH: number; side: string };
 
-// Where an uploaded image lands: the template's real photo box if we have it,
-// otherwise a side-based fallback (outer ~33% on the cut-out's side).
-function photoRect(cover: Cover): PhotoRect {
-  if (cover.photo) return cover.photo;
+// The photo zone of a cover, derived from which side the host cut-out sits on.
+// Covers keep the title on one side and the photo on the other, so the photo
+// zone is the outer ~33% on the cut-out's side (and never the title side).
+function photoRect(side: string): { x: number; y: number; w: number; h: number } {
   const w = 640;
-  if (cover.side === "left") return { x: 0, y: 0, w, h: COVER_H };
+  if (side === "left") return { x: 0, y: 0, w, h: COVER_H };
   // "right" and "none" both carry the cut-out on the right in the brand set.
   return { x: COVER_W - w, y: 0, w, h: COVER_H };
 }
@@ -149,7 +139,7 @@ export default function CoverStudio({
 
     // Drop the uploaded reference image into the template's photo zone.
     if (refImg) {
-      const r = photoRect(cover);
+      const r = photoRect(cover.side);
       ctx.save();
       ctx.beginPath();
       ctx.rect(r.x, r.y, r.w, r.h);
