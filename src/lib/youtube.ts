@@ -9,13 +9,23 @@ export interface YouTubeMeta {
   publishAt?: string | null;
 }
 
+/** Truncate to a UTF-8 byte budget without leaving a broken trailing character. */
+export function truncateUtf8(s: string, maxBytes: number): string {
+  const bytes = new TextEncoder().encode(s);
+  if (bytes.length <= maxBytes) return s;
+  return new TextDecoder("utf-8", { fatal: false })
+    .decode(bytes.slice(0, maxBytes))
+    .replace(/�+$/, "");
+}
+
 /** videos.insert resource. Scheduling = private + publishAt (YouTube flips it live). */
 export function buildVideoResource(meta: YouTubeMeta) {
   const scheduled = !!meta.publishAt;
   return {
     snippet: {
       title: meta.title.slice(0, 100),
-      description: meta.description.slice(0, 4900),
+      // YouTube's description limit is 5000 UTF-8 BYTES (not chars) — Hebrew is 2 bytes/char; keep headroom.
+      description: truncateUtf8(meta.description, 4900),
       categoryId: "22", // People & Blogs
       defaultLanguage: "he",
       defaultAudioLanguage: "he",
