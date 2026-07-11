@@ -71,11 +71,21 @@ export async function extractPodcastAudio(inputUrl: string): Promise<Buffer> {
   const dir = await mkdtemp(join(tmpdir(), "pod-"));
   try {
     const out = join(dir, "episode.mp3");
-    await exec(
-      ffmpegPath,
-      ["-i", inputUrl, "-vn", "-ar", "44100", "-b:a", "128k", out],
-      { maxBuffer: 1024 * 1024 * 64 },
-    );
+    try {
+      await exec(
+        ffmpegPath,
+        ["-i", inputUrl, "-vn", "-ar", "44100", "-b:a", "128k", out],
+        { maxBuffer: 1024 * 1024 * 64 },
+      );
+    } catch (e) {
+      // Never propagate the presigned URL (it embeds live credentials) — keep only
+      // the tail of ffmpeg's stderr, with any URLs scrubbed.
+      const stderr = String((e as { stderr?: string }).stderr ?? "")
+        .replace(/https?:\/\/\S+/g, "<url>")
+        .trim()
+        .slice(-300);
+      throw new Error("חילוץ האודיו נכשל (ffmpeg)" + (stderr ? `: ${stderr}` : ""));
+    }
     return await readFile(out);
   } finally {
     await rm(dir, { recursive: true, force: true });
