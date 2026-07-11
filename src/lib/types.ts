@@ -2,7 +2,7 @@
 
 export type EpisodeType = "episode" | "short";
 
-export type JobStage = "transcribe" | "generate" | "thumbnails";
+export type JobStage = "extract" | "transcribe" | "generate" | "thumbnails";
 export type JobStatus = "queued" | "running" | "done" | "error";
 
 export type GenerationKind =
@@ -14,7 +14,7 @@ export type GenerationKind =
   | "quote"
   | "idea";
 
-export type InputMode = "transcript" | "srt" | "audio";
+export type InputMode = "transcript" | "srt" | "audio" | "video";
 
 export interface Channel {
   id: string;
@@ -42,6 +42,17 @@ export interface Episode {
   title_chosen: string | null;
   description_chosen: string | null;
   duration_seconds: number | null;
+  thumbnail_path: string | null;
+  video_key: string | null;
+  video_size: number | null;
+  audio_key: string | null;
+  youtube_video_id: string | null;
+  youtube_status: string | null;
+  youtube_error: string | null;
+  publish_at: string | null;
+  youtube_upload_url: string | null;
+  youtube_uploaded_bytes: number;
+  spotify_published_at: string | null;
   created_at: string;
 }
 

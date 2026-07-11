@@ -29,6 +29,7 @@ export const REQUIRED_KINDS: GenerationKind[] = [
 ];
 
 export const STAGE_LABELS: Record<JobStage, string> = {
+  extract: "חילוץ אודיו מהוידאו",
   transcribe: "תמלול הפרק",
   generate: "יצירת תוכן",
   thumbnails: "יצירת תמונות ממוזערות",
