@@ -9,7 +9,7 @@ import type { JobStage } from "@/lib/types";
 // follows the returned `next` until it is null.
 export const maxDuration = 300;
 
-const VALID: JobStage[] = ["transcribe", "generate", "thumbnails"];
+const VALID: JobStage[] = ["extract", "transcribe", "generate", "thumbnails"];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;

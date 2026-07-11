@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { chatJSON, generateThumbnail, transcribeChunk } from "./openai";
-import { extractAudioChunks } from "./audio";
+import { extractAudioChunks, extractPodcastAudio } from "./audio";
+import { signGetUrl, uploadBuffer } from "./r2";
 import {
   StyleContext,
   buildAllContentPrompt,
@@ -83,11 +84,37 @@ interface GenRow {
   content: Record<string, unknown>;
 }
 
+/* ---------------- Stage 0: audio extraction from full video (R2) ---------------- */
+export async function runExtract(sb: SupabaseClient, episodeId: string): Promise<NextStage> {
+  const { data: ep } = await sb
+    .from("episodes")
+    .select("video_key")
+    .eq("id", episodeId)
+    .single();
+  if (!ep?.video_key) throw new Error("אין קובץ וידאו לפרק");
+
+  await setEpisodeStatus(sb, episodeId, "processing");
+  const job = await startJob(sb, episodeId, "extract");
+  try {
+    const url = await signGetUrl(ep.video_key as string);
+    const mp3 = await extractPodcastAudio(url);
+    const audioKey = `audio/${episodeId}.mp3`;
+    await uploadBuffer(audioKey, mp3, "audio/mpeg");
+    await sb.from("episodes").update({ audio_key: audioKey }).eq("id", episodeId);
+    await finishJob(sb, job);
+    return "transcribe";
+  } catch (e) {
+    await finishJob(sb, job, (e as Error).message);
+    await setEpisodeStatus(sb, episodeId, "error");
+    throw e;
+  }
+}
+
 /* ---------------- Stage 1: transcription ---------------- */
 export async function runTranscribe(sb: SupabaseClient, episodeId: string): Promise<NextStage> {
   const { data: ep } = await sb
     .from("episodes")
-    .select("source_path, source_filename")
+    .select("source_path, source_filename, audio_key")
     .eq("id", episodeId)
     .single();
   if (!ep) throw new Error("episode not found");
@@ -95,7 +122,7 @@ export async function runTranscribe(sb: SupabaseClient, episodeId: string): Prom
   await setEpisodeStatus(sb, episodeId, "processing");
 
   // Transcript provided directly (paste / SRT) → nothing to transcribe.
-  if (!ep.source_path) {
+  if (!ep.source_path && !ep.audio_key) {
     const { data: tr } = await sb
       .from("transcripts")
       .select("episode_id")
@@ -113,13 +140,20 @@ export async function runTranscribe(sb: SupabaseClient, episodeId: string): Prom
 
   const job = await startJob(sb, episodeId, "transcribe");
   try {
-    const { data: file, error: dlErr } = await sb.storage
-      .from(BUCKET)
-      .download(ep.source_path as string);
-    if (dlErr || !file) throw new Error("הורדת הקובץ מהאחסון נכשלה: " + (dlErr?.message ?? ""));
-
-    const buf = await file.arrayBuffer();
-    const chunks = await extractAudioChunks(buf, ep.source_filename ?? "audio");
+    let buf: ArrayBuffer;
+    if (ep.source_path) {
+      const { data: file, error: dlErr } = await sb.storage
+        .from(BUCKET)
+        .download(ep.source_path as string);
+      if (dlErr || !file) throw new Error("הורדת הקובץ מהאחסון נכשלה: " + (dlErr?.message ?? ""));
+      buf = await file.arrayBuffer();
+    } else {
+      const url = await signGetUrl(ep.audio_key as string);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`הורדת האודיו מ-R2 נכשלה (${res.status})`);
+      buf = await res.arrayBuffer();
+    }
+    const chunks = await extractAudioChunks(buf, ep.source_filename ?? "episode.mp3");
     const parts: string[] = [];
     for (const c of chunks) {
       parts.push(await transcribeChunk(c.buffer, c.name));
@@ -245,6 +279,7 @@ export async function runStage(
   episodeId: string,
   stage: JobStage,
 ): Promise<NextStage> {
+  if (stage === "extract") return runExtract(sb, episodeId);
   if (stage === "transcribe") return runTranscribe(sb, episodeId);
   if (stage === "generate") return runGenerate(sb, episodeId);
   return runThumbnails(sb, episodeId);

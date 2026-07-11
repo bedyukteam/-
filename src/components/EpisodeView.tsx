@@ -9,8 +9,13 @@ import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/li
 const TERMINAL = new Set(["ready"]);
 
 // Next stage to auto-run (skips stages already running or errored).
-function nextAuto(jobs: Job[]): JobStage | null {
+function nextAuto(jobs: Job[], needsExtract: boolean): JobStage | null {
   const s = (st: JobStage) => jobs.find((j) => j.stage === st)?.status;
+  if (needsExtract) {
+    const e = s("extract");
+    if (!e) return "extract";
+    if (e !== "done") return null;
+  }
   const t = s("transcribe");
   if (!t) return "transcribe";
   if (t !== "done") return null;
@@ -20,8 +25,9 @@ function nextAuto(jobs: Job[]): JobStage | null {
 }
 
 // First stage that is not done yet (used by the manual "continue/retry" button).
-function nextForce(jobs: Job[]): JobStage | null {
+function nextForce(jobs: Job[], needsExtract: boolean): JobStage | null {
   const s = (st: JobStage) => jobs.find((j) => j.stage === st)?.status;
+  if (needsExtract && s("extract") !== "done") return "extract";
   if (s("transcribe") !== "done") return "transcribe";
   if (s("generate") !== "done") return "generate";
   return null;
@@ -43,12 +49,16 @@ export default function EpisodeView({
   const [busyKind, setBusyKind] = useState<GenerationKind | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
+  const [videoKey, setVideoKey] = useState<string | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
   const drivingRef = useRef(false);
 
+  // A video episode needs extract while its video is in R2 and no extract job succeeded.
+  const needsExtract = !!videoKey && jobs.find((j) => j.stage === "extract")?.status !== "done";
+
   const load = useCallback(async () => {
     const [{ data: ep }, { data: j }, { data: tr }, { data: g }] = await Promise.all([
-      supabase.from("episodes").select("status, thumbnail_path").eq("id", episodeId).single(),
+      supabase.from("episodes").select("status, thumbnail_path, video_key").eq("id", episodeId).single(),
       supabase.from("jobs").select("*").eq("episode_id", episodeId).order("created_at"),
       supabase.from("transcripts").select("*").eq("episode_id", episodeId).maybeSingle(),
       supabase.from("generations").select("*").eq("episode_id", episodeId).order("created_at"),
@@ -56,6 +66,7 @@ export default function EpisodeView({
     if (ep) {
       setStatus(ep.status);
       setThumbnailPath((ep as { thumbnail_path: string | null }).thumbnail_path ?? null);
+      setVideoKey((ep as { video_key: string | null }).video_key ?? null);
     }
     setJobs((j ?? []) as Job[]);
     setTranscript((tr as Transcript) ?? null);
@@ -133,9 +144,9 @@ export default function EpisodeView({
     if (!loaded) return;
     if (status === "ready") return;
     if (jobs.some((j) => j.status === "error")) return;
-    const start = nextAuto(jobs);
+    const start = nextAuto(jobs, needsExtract);
     if (start) driveChain(start);
-  }, [loaded, jobs, status, driveChain]);
+  }, [loaded, jobs, status, driveChain, needsExtract]);
 
   async function regenerate(kind: GenerationKind, feedback?: string) {
     setBusyKind(kind);
@@ -189,7 +200,11 @@ export default function EpisodeView({
 
   return (
     <div className="flex flex-col gap-6">
-      <StatusTimeline jobs={jobs} processing={processing} />
+      <StatusTimeline
+        jobs={jobs}
+        processing={processing}
+        withExtract={needsExtract || jobs.some((j) => j.stage === "extract")}
+      />
 
       {gens.length > 0 && <ApprovalBar gens={gens} thumbnailReady={!!thumbnailPath} />}
 
@@ -221,7 +236,7 @@ export default function EpisodeView({
             <strong>שגיאה בשלב {STAGE_LABELS[errored.stage]}:</strong> {errored.error}
           </span>
           <button
-            onClick={() => driveChain(nextForce(jobs))}
+            onClick={() => driveChain(nextForce(jobs, needsExtract))}
             className="shrink-0 bg-danger text-white rounded-lg px-3 py-1.5 text-sm hover:opacity-90"
           >
             נסה שוב
@@ -231,7 +246,7 @@ export default function EpisodeView({
 
       {status !== "ready" && !errored && jobs.length > 0 && (
         <button
-          onClick={() => driveChain(nextForce(jobs))}
+          onClick={() => driveChain(nextForce(jobs, needsExtract))}
           className="self-start text-sm text-muted-on-navy hover:text-accent"
         >
           ▶︎ המשך עיבוד ידנית (אם נתקע)
@@ -267,8 +282,17 @@ export default function EpisodeView({
 }
 
 /* ---------- status timeline ---------- */
-function StatusTimeline({ jobs, processing }: { jobs: Job[]; processing: boolean }) {
+function StatusTimeline({
+  jobs,
+  processing,
+  withExtract,
+}: {
+  jobs: Job[];
+  processing: boolean;
+  withExtract: boolean;
+}) {
   const stages: { key: string; label: string }[] = [
+    ...(withExtract ? [{ key: "extract", label: STAGE_LABELS.extract }] : []),
     { key: "transcribe", label: STAGE_LABELS.transcribe },
     { key: "generate", label: STAGE_LABELS.generate },
   ];

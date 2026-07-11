@@ -60,3 +60,24 @@ export async function extractAudioChunks(
     await rm(dir, { recursive: true, force: true });
   }
 }
+
+/**
+ * Extract a podcast-quality mp3 from a remote video (presigned R2 URL).
+ * ffmpeg streams the input over https; only the mp3 output touches disk.
+ * 44.1 kHz / 128 kbps keeps publishing quality (~1 MB/min).
+ */
+export async function extractPodcastAudio(inputUrl: string): Promise<Buffer> {
+  if (!ffmpegPath) throw new Error("ffmpeg binary not available");
+  const dir = await mkdtemp(join(tmpdir(), "pod-"));
+  try {
+    const out = join(dir, "episode.mp3");
+    await exec(
+      ffmpegPath,
+      ["-i", inputUrl, "-vn", "-ar", "44100", "-b:a", "128k", out],
+      { maxBuffer: 1024 * 1024 * 64 },
+    );
+    return await readFile(out);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
