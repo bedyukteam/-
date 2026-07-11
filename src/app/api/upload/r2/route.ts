@@ -15,8 +15,8 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const body = await req.json();
   try {
+    const body = await req.json();
     if (body.action === "create") {
       const key = `video/${crypto.randomUUID()}/${safeName(body.filename ?? "episode.mp4")}`;
       const uploadId = await createMultipart(key, body.contentType || "video/mp4");

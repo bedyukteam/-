@@ -20,13 +20,15 @@ export function r2(): S3Client {
   if (_client) return _client;
   const accountId = process.env.R2_ACCOUNT_ID;
   if (!accountId) throw new Error("R2 לא מוגדר (חסר R2_ACCOUNT_ID בסביבה)");
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("R2 לא מוגדר (חסרים R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY בסביבה)");
+  }
   _client = new S3Client({
     region: "auto",
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
+    credentials: { accessKeyId, secretAccessKey },
   });
   return _client;
 }
@@ -57,7 +59,7 @@ export async function completeMultipart(
       Bucket: R2_BUCKET,
       Key: key,
       UploadId: uploadId,
-      MultipartUpload: { Parts: parts },
+      MultipartUpload: { Parts: [...parts].sort((a, b) => a.PartNumber - b.PartNumber) },
     }),
   );
 }
