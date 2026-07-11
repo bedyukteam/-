@@ -13,7 +13,10 @@ function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_");
 }
 
+const PART_SIZE = 32 * 1024 * 1024;
+
 const MODES: { key: InputMode; label: string }[] = [
+  { key: "video", label: "פרק וידאו מלא" },
   { key: "transcript", label: "הדבקת תמלול" },
   { key: "audio", label: "קובץ אודיו" },
 ];
@@ -21,7 +24,7 @@ const MODES: { key: InputMode; label: string }[] = [
 export default function UploadForm() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<InputMode>("transcript");
+  const [mode, setMode] = useState<InputMode>("video");
   const [type, setType] = useState<EpisodeType>("episode");
   const [title, setTitle] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -63,6 +66,49 @@ export default function UploadForm() {
     return path;
   }
 
+  async function uploadVideoToR2(file: File): Promise<string> {
+    const post = async (payload: Record<string, unknown>) => {
+      const res = await fetch("/api/upload/r2", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "שגיאת העלאה");
+      return json;
+    };
+    const { key, uploadId } = await post({
+      action: "create",
+      filename: file.name,
+      contentType: file.type || "video/mp4",
+    });
+    const parts: { ETag: string; PartNumber: number }[] = [];
+    const total = Math.ceil(file.size / PART_SIZE);
+    try {
+      for (let i = 0; i < total; i++) {
+        const blob = file.slice(i * PART_SIZE, Math.min((i + 1) * PART_SIZE, file.size));
+        const { url } = await post({ action: "sign-part", key, uploadId, partNumber: i + 1 });
+        let etag = "";
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const r = await fetch(url, { method: "PUT", body: blob });
+          if (r.ok) {
+            etag = r.headers.get("ETag") ?? "";
+            break;
+          }
+          if (attempt === 2) throw new Error(`העלאת חלק ${i + 1}/${total} נכשלה (${r.status})`);
+        }
+        if (!etag) throw new Error("חסר ETag מ-R2 — בדקי שהוגדר CORS עם ExposeHeaders: ETag");
+        parts.push({ ETag: etag, PartNumber: i + 1 });
+        setProgress(Math.round(((i + 1) / total) * 100));
+      }
+      await post({ action: "complete", key, uploadId, parts });
+      return key;
+    } catch (e) {
+      await post({ action: "abort", key, uploadId }).catch(() => {});
+      throw e;
+    }
+  }
+
   async function createEpisode(payload: Record<string, unknown>) {
     const res = await fetch("/api/episodes", {
       method: "POST",
@@ -85,6 +131,22 @@ export default function UploadForm() {
         }
         setStage("process");
         await createEpisode({ transcript_text: transcript, input_mode: "transcript" });
+        return;
+      }
+
+      if (mode === "video") {
+        const file = fileRef.current?.files?.[0];
+        if (!file) throw new Error("בחרי קובץ וידאו.");
+        setStage("upload");
+        setProgress(0);
+        const video_key = await uploadVideoToR2(file);
+        setStage("process");
+        await createEpisode({
+          video_key,
+          video_size: file.size,
+          source_filename: file.name,
+          input_mode: "video",
+        });
         return;
       }
 
@@ -164,6 +226,21 @@ export default function UploadForm() {
           className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent"
         />
       </label>
+
+      {mode === "video" && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">קובץ הפרק המלא (וידאו)</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="video/*"
+            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
+          />
+          <span className="text-xs text-muted">
+            הקובץ עולה לאחסון ענן, המערכת מחלצת ממנו אודיו ותמלול — ובסוף מפרסמת אותו ליוטיוב.
+          </span>
+        </label>
+      )}
 
       {mode === "transcript" && (
         <label className="flex flex-col gap-1 text-sm">
