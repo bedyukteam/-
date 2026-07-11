@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       source_path: source_path ?? null,
       source_filename: source_filename ?? null,
       video_key: hasVideo ? video_key : null,
-      video_size: hasVideo ? (video_size ?? null) : null,
+      video_size: hasVideo && typeof video_size === "number" ? video_size : null,
       input_mode: mode,
       status: hasTranscript ? "processing" : "uploaded",
     })

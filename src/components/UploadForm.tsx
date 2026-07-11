@@ -67,6 +67,7 @@ export default function UploadForm() {
   }
 
   async function uploadVideoToR2(file: File): Promise<string> {
+    if (file.size === 0) throw new Error("הקובץ ריק.");
     const post = async (payload: Record<string, unknown>) => {
       const res = await fetch("/api/upload/r2", {
         method: "POST",
@@ -90,15 +91,20 @@ export default function UploadForm() {
         const { url } = await post({ action: "sign-part", key, uploadId, partNumber: i + 1 });
         let etag = "";
         for (let attempt = 0; attempt < 3; attempt++) {
-          const r = await fetch(url, { method: "PUT", body: blob });
-          if (r.ok) {
-            etag = r.headers.get("ETag") ?? "";
-            break;
+          try {
+            const r = await fetch(url, { method: "PUT", body: blob });
+            if (r.ok) {
+              etag = r.headers.get("ETag") ?? "";
+              break;
+            }
+            if (attempt === 2) throw new Error(`העלאת חלק ${i + 1}/${total} נכשלה (${r.status})`);
+          } catch (err) {
+            if (attempt === 2) throw err instanceof Error ? err : new Error(`העלאת חלק ${i + 1}/${total} נכשלה`);
           }
-          if (attempt === 2) throw new Error(`העלאת חלק ${i + 1}/${total} נכשלה (${r.status})`);
         }
         if (!etag) throw new Error("חסר ETag מ-R2 — בדקי שהוגדר CORS עם ExposeHeaders: ETag");
         parts.push({ ETag: etag, PartNumber: i + 1 });
+        // Progress is intentionally coarse (per 32MB part, not per byte) for v1.
         setProgress(Math.round(((i + 1) / total) * 100));
       }
       await post({ action: "complete", key, uploadId, parts });
@@ -141,6 +147,8 @@ export default function UploadForm() {
         setProgress(0);
         const video_key = await uploadVideoToR2(file);
         setStage("process");
+        // If createEpisode fails after a successful upload, the R2 object is orphaned
+        // (acceptable for v1; a user retry re-uploads under a new key).
         await createEpisode({
           video_key,
           video_size: file.size,
