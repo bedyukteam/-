@@ -101,7 +101,9 @@ export async function syncCanvaTemplates(sb: SupabaseClient, accessToken: string
     (page) => uploads.find((u) => u.page === page)!.path,
   );
 
-  await sb.from("cover_templates").delete().neq("page_number", -1); // clear all, full replace
-  await sb.from("cover_templates").insert(merged);
+  const { error: delErr } = await sb.from("cover_templates").delete().neq("page_number", -1); // clear all, full replace
+  if (delErr) throw new Error(`ניקוי cover_templates נכשל: ${delErr.message}`);
+  const { error: insErr } = await sb.from("cover_templates").insert(merged);
+  if (insErr) throw new Error(`כתיבת cover_templates נכשלה: ${insErr.message}`);
   return merged.length;
 }

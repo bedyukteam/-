@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     if (!tokens.refresh_token) {
       return NextResponse.redirect(new URL("/settings?canva=error", req.url));
     }
-    await supabase.from("oauth_tokens").upsert(
+    const { error: upsertErr } = await supabase.from("oauth_tokens").upsert(
       {
         provider: "canva",
         refresh_token: tokens.refresh_token,
@@ -39,6 +39,9 @@ export async function GET(req: Request) {
       },
       { onConflict: "provider" },
     );
+    if (upsertErr) {
+      return NextResponse.redirect(new URL("/settings?canva=error", req.url));
+    }
     return NextResponse.redirect(new URL("/settings?canva=connected", req.url));
   } catch {
     return NextResponse.redirect(new URL("/settings?canva=error", req.url));

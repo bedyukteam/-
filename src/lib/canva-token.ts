@@ -21,6 +21,7 @@ export async function getValidCanvaToken(sb: SupabaseClient): Promise<string> {
     .from("oauth_tokens")
     .update({
       access_token: fresh.access_token,
+      ...(fresh.refresh_token ? { refresh_token: fresh.refresh_token } : {}),
       expires_at: expiresAtFromNow(fresh.expires_in),
       updated_at: new Date().toISOString(),
     })

@@ -77,8 +77,13 @@ export default function CoverStudio({
   const [covers, setCovers] = useState<Cover[]>([]);
   const [bgIndex, setBgIndex] = useState(0);
   const [bg, setBg] = useState<HTMLImageElement | null>(null);
+  const [bgLoadError, setBgLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "approved" | "downloaded">("");
+  // Tracks the page number of the cover currently displayed, kept in sync via
+  // a ref (not state) so an in-flight savePosition() can check the *live*
+  // selection after its await, instead of the stale closure it was called with.
+  const currentPageRef = useRef<number | null>(null);
 
   // Uploaded reference image — replaces the template's built-in photo.
   const [refImg, setRefImg] = useState<HTMLImageElement | null>(null);
@@ -131,7 +136,7 @@ export default function CoverStudio({
         rows.map(async (r) => {
           const { data } = await supabase.storage
             .from("media")
-            .createSignedUrl(r.storage_path as string, 3600);
+            .createSignedUrl(r.storage_path as string, 86400);
           return {
             page: r.page_number as number,
             url: data?.signedUrl ?? "",
@@ -161,9 +166,13 @@ export default function CoverStudio({
     let cancelled = false;
     const img = new Image();
     img.onload = () => !cancelled && setBg(img);
+    img.onerror = () => !cancelled && setBgLoadError(true);
     img.src = cover.url;
     return () => {
       cancelled = true;
+      // Clear any stale error before the next cover starts loading (runs
+      // right before the effect re-fires for a new [covers, bgIndex]).
+      setBgLoadError(false);
     };
   }, [covers, bgIndex]);
 
@@ -172,6 +181,7 @@ export default function CoverStudio({
   useEffect(() => {
     const cover = covers[bgIndex];
     if (!cover) return;
+    currentPageRef.current = cover.page;
     setTitleSize(cover.maxFontPx);
     setTitleDX(0);
     setTitleDY(0);
@@ -292,25 +302,35 @@ export default function CoverStudio({
   async function savePosition() {
     const cover = covers[bgIndex];
     if (!cover) return;
+    // Capture what this save is *for* up front — bgIndex/titleDX/titleDY may
+    // all change while the request is in flight (user switches backgrounds
+    // via "↻ החלף רקע" or nudges a slider on the new cover).
+    const targetPage = cover.page;
+    const targetCx = cover.cx + titleDX;
+    const targetCy = cover.cy + titleDY;
+    const targetFontPx = titleSize;
     setSavingPosition(true);
     try {
       const res = await fetch(`/api/covers/${cover.page}/position`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          cx: cover.cx + titleDX,
-          cy: cover.cy + titleDY,
-          maxFontPx: titleSize,
-        }),
+        body: JSON.stringify({ cx: targetCx, cy: targetCy, maxFontPx: targetFontPx }),
       });
       if (!res.ok) return;
+      // Always safe: keyed by page, so it updates the right entry in the
+      // covers array regardless of what's currently on screen.
       setCovers((cs) =>
-        cs.map((c, i) =>
-          i === bgIndex ? { ...c, cx: c.cx + titleDX, cy: c.cy + titleDY, maxFontPx: titleSize } : c,
+        cs.map((c) =>
+          c.page === targetPage ? { ...c, cx: targetCx, cy: targetCy, maxFontPx: targetFontPx } : c,
         ),
       );
-      setTitleDX(0);
-      setTitleDY(0);
+      // Only safe if the user hasn't navigated to a different cover in the
+      // meantime — these two directly drive what's currently drawn, so
+      // resetting them for an unrelated cover would wipe live adjustments.
+      if (currentPageRef.current === targetPage) {
+        setTitleDX(0);
+        setTitleDY(0);
+      }
     } finally {
       setSavingPosition(false);
     }
@@ -359,6 +379,9 @@ export default function CoverStudio({
           aria-label="תצוגה מקדימה של הקאבר"
         />
       </div>
+      {bgLoadError && (
+        <p className="text-xs text-danger mb-3">טעינת הרקע נכשלה — נסי לרענן את הדף</p>
+      )}
 
       {/* Background switcher */}
       <div className="flex items-center gap-2 mb-3">
