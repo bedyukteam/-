@@ -14,7 +14,16 @@ const FONT_URL = "/fonts/rubik-800.woff2";
 // an uploaded reference image, so the old photo never peeks out behind it.
 const BRAND_NAVY = "#324158";
 
-type Cover = { file: string; cx: number; cy: number; maxW: number; maxH: number; side: string };
+type Cover = {
+  page: number;
+  url: string;
+  cx: number;
+  cy: number;
+  maxW: number;
+  maxH: number;
+  side: string;
+  maxFontPx: number;
+};
 
 // The photo zone of a cover, derived from which side the host cut-out sits on.
 // Covers keep the title on one side and the photo on the other, so the photo
@@ -82,6 +91,7 @@ export default function CoverStudio({
   const [titleSize, setTitleSize] = useState(100); // max font px (auto-fit shrinks below this)
   const [titleDX, setTitleDX] = useState(0); // horizontal nudge from the centered position
   const [titleDY, setTitleDY] = useState(0); // vertical nudge
+  const [savingPosition, setSavingPosition] = useState(false);
 
   // Cover title follows the approved/proposed title (updates when it changes).
   // Done during render (not in an effect) per the React state-from-prop pattern.
@@ -111,18 +121,38 @@ export default function CoverStudio({
   // isn't stuck on one image, then "החלף רקע" reshuffles to another random one.
   useEffect(() => {
     let cancelled = false;
-    fetch("/covers.json")
-      .then((r) => r.json())
-      .then((list: Cover[]) => {
-        if (cancelled || !Array.isArray(list) || list.length === 0) return;
-        setCovers(list);
-        setBgIndex(Math.floor(Math.random() * list.length));
-      })
-      .catch(() => {});
+    (async () => {
+      const { data: rows } = await supabase
+        .from("cover_templates")
+        .select("page_number, storage_path, cx, cy, max_w, max_h, side, max_font_px")
+        .order("page_number");
+      if (cancelled || !rows || rows.length === 0) return;
+      const withUrls = await Promise.all(
+        rows.map(async (r) => {
+          const { data } = await supabase.storage
+            .from("media")
+            .createSignedUrl(r.storage_path as string, 3600);
+          return {
+            page: r.page_number as number,
+            url: data?.signedUrl ?? "",
+            cx: r.cx as number,
+            cy: r.cy as number,
+            maxW: r.max_w as number,
+            maxH: r.max_h as number,
+            side: r.side as string,
+            maxFontPx: (r.max_font_px as number) ?? 100,
+          } satisfies Cover;
+        }),
+      );
+      const usable = withUrls.filter((c) => c.url);
+      if (cancelled || usable.length === 0) return;
+      setCovers(usable);
+      setBgIndex(Math.floor(Math.random() * usable.length));
+    })();
     return () => {
       cancelled = true;
     };
-  }, [episodeId]);
+  }, [episodeId, supabase]);
 
   // Load the selected background image.
   useEffect(() => {
@@ -131,10 +161,20 @@ export default function CoverStudio({
     let cancelled = false;
     const img = new Image();
     img.onload = () => !cancelled && setBg(img);
-    img.src = `/${cover.file}`;
+    img.src = cover.url;
     return () => {
       cancelled = true;
     };
+  }, [covers, bgIndex]);
+
+  // Whenever the selected cover changes, adopt ITS saved baseline instead of
+  // carrying over whatever the sliders happened to be at for the last one.
+  useEffect(() => {
+    const cover = covers[bgIndex];
+    if (!cover) return;
+    setTitleSize(cover.maxFontPx);
+    setTitleDX(0);
+    setTitleDY(0);
   }, [covers, bgIndex]);
 
   const draw = useCallback(() => {
@@ -247,6 +287,33 @@ export default function CoverStudio({
     URL.revokeObjectURL(a.href);
     setDone("downloaded");
     setTimeout(() => setDone(""), 1500);
+  }
+
+  async function savePosition() {
+    const cover = covers[bgIndex];
+    if (!cover) return;
+    setSavingPosition(true);
+    try {
+      const res = await fetch(`/api/covers/${cover.page}/position`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          cx: cover.cx + titleDX,
+          cy: cover.cy + titleDY,
+          maxFontPx: titleSize,
+        }),
+      });
+      if (!res.ok) return;
+      setCovers((cs) =>
+        cs.map((c, i) =>
+          i === bgIndex ? { ...c, cx: c.cx + titleDX, cy: c.cy + titleDY, maxFontPx: titleSize } : c,
+        ),
+      );
+      setTitleDX(0);
+      setTitleDY(0);
+    } finally {
+      setSavingPosition(false);
+    }
   }
 
   async function onApprove() {
@@ -427,11 +494,11 @@ export default function CoverStudio({
           />
         </label>
       </div>
-      {(titleSize !== 100 || titleDX !== 0 || titleDY !== 0) && (
+      {(titleSize !== (covers[bgIndex]?.maxFontPx ?? 100) || titleDX !== 0 || titleDY !== 0) && (
         <button
           type="button"
           onClick={() => {
-            setTitleSize(100);
+            setTitleSize(covers[bgIndex]?.maxFontPx ?? 100);
             setTitleDX(0);
             setTitleDY(0);
           }}
@@ -440,6 +507,17 @@ export default function CoverStudio({
           ↺ אפס גודל ומיקום
         </button>
       )}
+      {covers[bgIndex] &&
+        (titleDX !== 0 || titleDY !== 0 || titleSize !== covers[bgIndex].maxFontPx) && (
+          <button
+            type="button"
+            onClick={savePosition}
+            disabled={savingPosition}
+            className="text-xs text-accent hover:opacity-80 mb-3 mr-3 disabled:opacity-50"
+          >
+            {savingPosition ? "שומרת…" : "💾 שמור מיקום לתבנית הזו"}
+          </button>
+        )}
 
       {/* Quick-pick from the proposed thumbnail titles */}
       {titleOptions.length > 0 && (
