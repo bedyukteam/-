@@ -193,11 +193,15 @@ export default function EpisodeView({
 
   async function saveEdit(gen: Generation, content: Record<string, unknown>) {
     setGens((gs) => gs.map((g) => (g.id === gen.id ? { ...g, content } : g)));
-    await fetch(`/api/generations/${gen.id}`, {
+    const res = await fetch(`/api/generations/${gen.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ content }),
-    });
+    }).catch(() => null);
+    if (!res?.ok) {
+      alert("שמירת העריכה נכשלה — הטקסט חזר לגרסה הקודמת. נסי שוב.");
+      await load();
+    }
   }
 
   const byKind = (k: GenerationKind) => gens.filter((g) => g.kind === k);

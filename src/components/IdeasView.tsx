@@ -41,12 +41,17 @@ export default function IdeasView({
   }
 
   async function saveEdit(gen: Generation, content: Record<string, unknown>) {
+    const prev = gens;
     setGens((gs) => gs.map((g) => (g.id === gen.id ? { ...g, content } : g)));
-    await fetch(`/api/generations/${gen.id}`, {
+    const res = await fetch(`/api/generations/${gen.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ content }),
-    });
+    }).catch(() => null);
+    if (!res?.ok) {
+      alert("שמירת העריכה נכשלה — הטקסט חזר לגרסה הקודמת. נסי שוב.");
+      setGens(prev);
+    }
   }
 
   // Only episodes that actually have idea-content, newest first.

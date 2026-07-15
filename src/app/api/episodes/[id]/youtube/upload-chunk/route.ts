@@ -9,6 +9,40 @@ import { buildVideoResource, nextChunkRange, parseRangeEnd } from "@/lib/youtube
 const UPLOAD_INIT_URL =
   "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status";
 
+// The resumable session bakes title/description at session-init — if the user
+// edited an approved item after a previous publish attempt opened the session,
+// the video would keep the stale metadata. Once the upload completes we
+// re-assert the currently-approved values with videos.update. Best-effort:
+// failure must never fail the publish itself.
+async function trySyncMetadata(sb: SupabaseClient, accessToken: string, videoId: string, episodeId: string) {
+  try {
+    const { data: gens } = await sb
+      .from("generations")
+      .select("kind, content")
+      .eq("episode_id", episodeId)
+      .eq("selected", true)
+      .in("kind", ["title", "description"]);
+    const title =
+      (gens?.find((g) => g.kind === "title")?.content as { text?: string } | undefined)?.text;
+    const description =
+      (gens?.find((g) => g.kind === "description")?.content as { text?: string } | undefined)?.text;
+    if (!title && !description) return;
+    // buildVideoResource supplies the full snippet (incl. required categoryId).
+    const { snippet } = buildVideoResource({
+      title: title || "פרק פודקאסט",
+      description: description ?? "",
+      publishAt: null,
+    });
+    await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ id: videoId, snippet }),
+    });
+  } catch {
+    // swallow — see comment above
+  }
+}
+
 // Best-effort: sets the approved cover as the video's thumbnail. Failure here
 // must never fail the overall publish — the video is already live/scheduled.
 async function trySetThumbnail(sb: SupabaseClient, accessToken: string, videoId: string, episodeId: string) {
@@ -129,6 +163,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (putRes.status === 200 || putRes.status === 201) {
       const video = (await putRes.json()) as { id: string };
+      await trySyncMetadata(supabase, accessToken, video.id, id);
       await trySetThumbnail(supabase, accessToken, video.id, id);
       await supabase
         .from("episodes")
