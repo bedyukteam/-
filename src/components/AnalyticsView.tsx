@@ -1,91 +1,41 @@
 // studio/src/components/AnalyticsView.tsx
-// "אנליטיקס" — mirrors YouTube Studio's channel overview (totals, daily views
-// chart, top content) plus per-episode panels and a one-click sync that imports
-// already-published channel videos into the system.
+// "ניתוח נתוני הערוץ" — channel-level mirror of YouTube Studio's analytics:
+// three tabs (סקירה כללית / תוכן / קהל) over a global period picker, every
+// number fetched live via /api/analytics/report. Clicking any video opens the
+// per-video drill-down at /analytics/video/[id].
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import AnalyticsPanel from "@/components/AnalyticsPanel";
+import { AreaChart, BarList } from "@/components/analytics/Charts";
+import StatTabs from "@/components/analytics/StatTabs";
+import PeriodPicker, { defaultChannelPeriod, type Period } from "@/components/analytics/PeriodPicker";
+import DisabledCard from "@/components/analytics/DisabledCard";
+import { useReports } from "@/components/analytics/useReports";
+import { CHART, fmtDateShort, fmtDuration, fmtHours, fmtNum } from "@/components/analytics/format";
+import { cumulative } from "@/lib/youtube-analytics";
+import {
+  DEVICE_LABELS,
+  GENDER_LABELS,
+  STUDIO_URL,
+  SUBSCRIBED_LABELS,
+  TRAFFIC_LABELS,
+  ageLabel,
+  countryLabel,
+} from "@/components/analytics/labels";
 
-export interface AnalyticsEpisode {
-  id: string;
-  title: string | null;
-  type: string | null;
-  created_at: string;
-  youtube_video_id: string | null;
-  spotify_stats: {
-    streams: number | null;
-    listeners: number | null;
-    starts: number | null;
-    uploaded_at: string;
-  } | null;
-}
+const TABS = [
+  { key: "overview", label: "סקירה כללית" },
+  { key: "content", label: "תוכן" },
+  { key: "audience", label: "קהל" },
+] as const;
 
-interface ChannelData {
-  days: number;
-  channelTitle: string;
-  subscriberCount: number;
-  totals: {
-    views: number;
-    watchTimeMinutes: number;
-    subsGained: number;
-    subsLost: number;
-    averageViewDurationSec: number;
-  };
-  series: { date: string; views: number }[];
-  topVideos: {
-    videoId: string;
-    title: string;
-    views: number;
-    averageViewDurationSec: number;
-    averageViewPercentage: number;
-    ctr: number | null;
-  }[];
-}
-
-const PERIODS = [
-  { days: 7, label: "7 ימים" },
-  { days: 28, label: "28 ימים" },
-  { days: 90, label: "90 ימים" },
-];
-
-function fmtDuration(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-export default function AnalyticsView({ episodes }: { episodes: AnalyticsEpisode[] }) {
-  const router = useRouter();
-  const [days, setDays] = useState(28);
-  const [data, setData] = useState<ChannelData | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+export default function AnalyticsView() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("overview");
+  const [period, setPeriod] = useState<Period>(defaultChannelPeriod());
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
-
-  const loadChannel = useCallback(async (d: number) => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/analytics/channel?days=${d}`);
-      const json = await res.json();
-      if (json.error) setError(json.error);
-      else setData(json);
-    } catch {
-      setError("שגיאת רשת");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Deferred so the effect body itself doesn't set state synchronously
-    // (react-hooks/set-state-in-effect); cancelled on rapid period switches.
-    const t = setTimeout(() => void loadChannel(days), 0);
-    return () => clearTimeout(t);
-  }, [days, loadChannel]);
+  const router = useRouter();
 
   async function syncFromYouTube() {
     setSyncing(true);
@@ -93,210 +43,339 @@ export default function AnalyticsView({ episodes }: { episodes: AnalyticsEpisode
     try {
       const res = await fetch("/api/youtube/sync", { method: "POST" });
       const json = await res.json();
-      if (json.error) setSyncMsg(`שגיאה: ${json.error}`);
-      else {
-        setSyncMsg(
-          json.imported > 0
-            ? `יובאו ${json.imported} סרטונים חדשים מהערוץ ✓`
-            : "הכל כבר מסונכרן ✓",
-        );
-        router.refresh();
-      }
+      setSyncMsg(json.error ? `שגיאה: ${json.error}` : json.imported > 0 ? `יובאו ${json.imported} סרטונים ✓` : "הכל מסונכרן ✓");
+      if (!json.error) router.refresh();
     } finally {
       setSyncing(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* ---- channel overview (mirror of Studio) ---- */}
-      <section className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-bold">
-            סקירת הערוץ{data ? ` — ${data.channelTitle}` : ""}
-          </h2>
-          <div className="flex items-center gap-2">
-            {PERIODS.map((p) => (
-              <button
-                key={p.days}
-                onClick={() => setDays(p.days)}
-                className={`text-xs rounded-full px-3 py-1.5 border transition ${
-                  days === p.days
-                    ? "bg-accent text-accent-foreground border-accent font-semibold"
-                    : "border-border text-muted hover:border-accent"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+    <div className="flex flex-col gap-5">
+      {/* header: tabs + period + sync */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1">
+          {TABS.map((t) => (
             <button
-              onClick={syncFromYouTube}
-              disabled={syncing}
-              className="text-xs border border-border rounded-full px-3 py-1.5 hover:border-accent disabled:opacity-50 transition"
-              title="מייבא למערכת סרטונים שכבר פורסמו בערוץ"
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`text-sm rounded-lg px-4 py-1.5 transition ${
+                tab === t.key ? "bg-accent text-accent-foreground font-bold" : "text-muted hover:text-foreground"
+              }`}
             >
-              {syncing ? "מסנכרן…" : "🔄 סנכרן תוכן מיוטיוב"}
+              {t.label}
             </button>
-          </div>
+          ))}
         </div>
-        {syncMsg && <p className="text-xs text-muted">{syncMsg}</p>}
+        <div className="flex items-center gap-2">
+          <div className="bg-surface rounded-lg">
+            <PeriodPicker value={period} onChange={setPeriod} />
+          </div>
+          <button
+            onClick={syncFromYouTube}
+            disabled={syncing}
+            title="מייבא למערכת סרטונים שכבר פורסמו בערוץ"
+            className="text-xs bg-surface border border-border rounded-lg px-3 py-2 hover:border-accent disabled:opacity-50 transition"
+          >
+            {syncing ? "מסנכרן…" : "🔄 סנכרן תוכן מיוטיוב"}
+          </button>
+        </div>
+      </div>
+      {syncMsg && <p className="text-xs text-muted-on-navy">{syncMsg}</p>}
 
-        {loading && <p className="text-sm text-muted">טוען נתוני ערוץ…</p>}
-        {!loading && error && <p className="text-sm text-danger">{error}</p>}
+      {tab === "overview" && <OverviewTab period={period} />}
+      {tab === "content" && <ContentTab period={period} />}
+      {tab === "audience" && <AudienceTab period={period} />}
+    </div>
+  );
+}
 
-        {!loading && data && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Stat label={`צפיות · ${days} ימים`} value={data.totals.views.toLocaleString()} />
-              <Stat
-                label="זמן צפייה (שעות)"
-                value={(data.totals.watchTimeMinutes / 60).toFixed(1)}
-              />
-              <Stat
-                label="שינוי מנויים בתקופה"
-                value={`${data.totals.subsGained - data.totals.subsLost >= 0 ? "+" : ""}${
-                  data.totals.subsGained - data.totals.subsLost
-                }`}
-              />
-              <Stat label="סה״כ מנויים" value={data.subscriberCount.toLocaleString()} />
-            </div>
+/* ================= סקירה כללית ================= */
 
-            <ViewsChart series={data.series} />
+function OverviewTab({ period }: { period: Period }) {
+  const { data, loading, error } = useReports(["channel_totals", "channel_series", "top_videos"], period);
+  const [metric, setMetric] = useState("views");
 
-            <div>
-              <h3 className="font-semibold text-sm mb-2">התוכן המוביל בתקופה</h3>
-              {data.topVideos.length === 0 ? (
-                <p className="text-xs text-muted">אין עדיין נתוני תוכן לתקופה הזו.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs text-muted text-right">
-                        <th className="py-1.5 font-medium">תוכן</th>
-                        <th className="py-1.5 font-medium">משך צפייה ממוצע</th>
-                        <th className="py-1.5 font-medium">CTR</th>
-                        <th className="py-1.5 font-medium">צפיות</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.topVideos.map((v) => (
-                        <tr key={v.videoId} className="border-t border-border">
-                          <td className="py-2 pl-3">
-                            <a
-                              href={`https://youtube.com/watch?v=${v.videoId}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-3 hover:text-accent"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
-                                alt=""
-                                className="w-20 h-11 object-cover rounded-md shrink-0"
-                              />
-                              <span className="line-clamp-2">{v.title}</span>
-                            </a>
-                          </td>
-                          <td className="py-2 whitespace-nowrap">
-                            {fmtDuration(v.averageViewDurationSec)}{" "}
-                            <span className="text-muted text-xs">
-                              ({v.averageViewPercentage.toFixed(1)}%)
-                            </span>
-                          </td>
-                          <td className="py-2 whitespace-nowrap">
-                            {v.ctr != null ? `${v.ctr.toFixed(1)}%` : "—"}
-                          </td>
-                          <td className="py-2 font-semibold">{v.views.toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox msg={error} />;
+
+  const t = data.channel_totals?.rows?.[0] ?? [];
+  const views = Number(t[0] ?? 0);
+  const minutes = Number(t[2] ?? 0);
+  const subsNet = Number(t[4] ?? 0) - Number(t[5] ?? 0);
+  const series = data.channel_series?.rows ?? [];
+
+  const seriesFor = (m: string) =>
+    series.map((r) =>
+      m === "views" ? Number(r[1] ?? 0) : m === "watch" ? Number(r[2] ?? 0) / 60 : Number(r[3] ?? 0) - Number(r[4] ?? 0),
+    );
+
+  const top = data.top_videos?.rows ?? [];
+  const meta = data.top_videos?.meta ?? {};
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
+        <h2 className="font-bold text-center">
+          היו {fmtNum(views)} צפיות בערוץ בתקופה: {period.label}
+        </h2>
+        <StatTabs
+          active={metric}
+          onChange={setMetric}
+          stats={[
+            { key: "views", label: "צפיות", value: fmtNum(views) },
+            { key: "watch", label: "זמן צפייה (שעות)", value: fmtHours(minutes) },
+            { key: "subs", label: "מנויים", value: `${subsNet >= 0 ? "+" : ""}${fmtNum(subsNet)}` },
+          ]}
+        />
+        <AreaChart
+          series={[{ points: seriesFor(metric), color: CHART.primary, fill: true }]}
+          xFirst={series.length ? fmtDateShort(String(series[0][0])) : ""}
+          xLast={series.length ? fmtDateShort(String(series[series.length - 1][0])) : ""}
+        />
+      </section>
+
+      <section className="bg-surface border border-border rounded-2xl p-5">
+        <h3 className="font-bold text-sm mb-3">התוכן המוביל שלך במהלך התקופה הזו</h3>
+        {top.length === 0 ? (
+          <p className="text-xs text-muted">אין נתוני תוכן לתקופה הזו.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-muted text-right">
+                  <th className="py-1.5 font-medium">תוכן</th>
+                  <th className="py-1.5 font-medium">משך צפייה ממוצע</th>
+                  <th className="py-1.5 font-medium">צפיות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {top.map((r) => {
+                  const id = String(r[0]);
+                  const m = meta[id];
+                  return (
+                    <tr key={id} className="border-t border-border">
+                      <td className="py-2 pl-3">
+                        <a href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-accent">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="w-20 h-11 object-cover rounded-md shrink-0" />
+                          <span className="min-w-0">
+                            <span className="line-clamp-2">{m?.title ?? id}</span>
+                            {m?.publishedAt && <span className="block text-xs text-muted">{fmtDateShort(m.publishedAt)}</span>}
+                          </span>
+                        </a>
+                      </td>
+                      <td className="py-2 whitespace-nowrap">
+                        {fmtDuration(Number(r[4] ?? 0))}{" "}
+                        <span className="text-muted text-xs">({Number(r[5] ?? 0).toFixed(1)}%)</span>
+                      </td>
+                      <td className="py-2 font-semibold">{fmtNum(Number(r[1] ?? 0))}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
-      {/* ---- per-episode panels (system episodes) ---- */}
-      <div>
-        <h2 className="font-bold text-on-navy mb-1">פירוט לפי פרק</h2>
-        <p className="text-muted-on-navy text-xs mb-4">
-          פרקים ושורטים שבמערכת — כולל העלאת CSV של ספוטיפיי לפודקאסטים.
-        </p>
-        {episodes.length === 0 ? (
-          <p className="text-muted text-sm bg-surface border border-border rounded-2xl p-6">
-            עדיין אין פרקים במערכת. אפשר לייבא את התוכן הקיים עם ״סנכרן תוכן מיוטיוב״ למעלה.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {episodes.map((ep) => (
-              <section key={ep.id} className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-bold text-on-navy">
-                    {ep.type === "short" ? "🎬" : "🎙"} {ep.title || "ללא כותרת"}
-                  </h3>
-                  <span className="text-xs text-muted-on-navy">
-                    {new Date(ep.created_at).toLocaleDateString("he-IL")}
-                  </span>
-                  <a href={`/episodes/${ep.id}`} className="text-xs text-accent hover:underline">
-                    לדף הפרק ←
-                  </a>
-                </div>
-                <AnalyticsPanel
-                  episodeId={ep.id}
-                  youtubeVideoId={ep.youtube_video_id}
-                  spotifyStats={ep.spotify_stats}
-                  showSpotify={ep.type !== "short"}
-                  onChange={() => router.refresh()}
-                />
-              </section>
-            ))}
+      <DisabledCard title="זמן אמת (48 השעות האחרונות)" studioUrl={`${STUDIO_URL}`} />
+    </div>
+  );
+}
+
+/* ================= תוכן ================= */
+
+function ContentTab({ period }: { period: Period }) {
+  const { data, loading, error } = useReports(["channel_totals", "top_videos", "traffic_sources"], period);
+  const [filter, setFilter] = useState<"all" | "videos" | "shorts">("all");
+
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox msg={error} />;
+
+  const t = data.channel_totals?.rows?.[0] ?? [];
+  const top = data.top_videos?.rows ?? [];
+  const meta = data.top_videos?.meta ?? {};
+  const isShort = (id: string) => (meta[id]?.durationSec ?? 9999) <= 185;
+  const filtered = top.filter((r) => {
+    const id = String(r[0]);
+    return filter === "all" ? true : filter === "shorts" ? isShort(id) : !isShort(id);
+  });
+
+  const traffic = (data.traffic_sources?.rows ?? [])
+    .map((r) => ({ label: TRAFFIC_LABELS[String(r[0])] ?? String(r[0]), value: Number(r[1] ?? 0) }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          {(
+            [
+              { key: "all", label: "הכל" },
+              { key: "videos", label: "סרטונים" },
+              { key: "shorts", label: "סרטוני Shorts" },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`text-xs rounded-full px-3 py-1.5 border transition ${
+                filter === f.key ? "bg-foreground text-white border-foreground font-semibold" : "border-border text-muted hover:border-accent"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <StatTabs
+          stats={[
+            { key: "views", label: "צפיות", value: fmtNum(Number(t[0] ?? 0)) },
+            { key: "engaged", label: "צפיות פעילות", value: fmtNum(Number(t[1] ?? 0)) },
+            { key: "likes", label: "לייקים", value: fmtNum(Number(t[6] ?? 0)) },
+            { key: "subs", label: "מנויים", value: `${Number(t[4] ?? 0) - Number(t[5] ?? 0) >= 0 ? "+" : ""}${fmtNum(Number(t[4] ?? 0) - Number(t[5] ?? 0))}` },
+          ]}
+        />
+      </section>
+
+      <div className="grid lg:grid-cols-2 gap-4 items-start">
+        <section className="bg-surface border border-border rounded-2xl p-5">
+          <h3 className="font-bold text-sm mb-1">איך הצופים הגיעו לתוכן שלך</h3>
+          <p className="text-xs text-muted mb-3">צפיות · {period.label}</p>
+          <BarList items={traffic} />
+        </section>
+
+        <section className="bg-surface border border-border rounded-2xl p-5">
+          <h3 className="font-bold text-sm mb-1">
+            {filter === "shorts" ? "סרטוני Shorts מובילים" : "התוכן המוביל"}
+          </h3>
+          <p className="text-xs text-muted mb-3">צפיות · {period.label}</p>
+          <div className="flex flex-col gap-2">
+            {filtered.slice(0, 8).map((r) => {
+              const id = String(r[0]);
+              return (
+                <a key={id} href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-accent text-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="w-16 h-9 object-cover rounded shrink-0" />
+                  <span className="flex-1 truncate">{meta[id]?.title ?? id}</span>
+                  <span className="font-semibold shrink-0">{fmtNum(Number(r[1] ?? 0))}</span>
+                </a>
+              );
+            })}
+            {filtered.length === 0 && <p className="text-xs text-muted">אין תוכן מהסוג הזה בתקופה.</p>}
           </div>
-        )}
+        </section>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+/* ================= קהל ================= */
+
+function AudienceTab({ period }: { period: Period }) {
+  const { data, loading, error } = useReports(
+    ["channel_series", "subscribed_status", "geography", "demographics", "devices"],
+    period,
+  );
+
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox msg={error} />;
+
+  const series = data.channel_series?.rows ?? [];
+  const subsCumulative = cumulative(series.map((r) => Number(r[3] ?? 0) - Number(r[4] ?? 0)));
+
+  const subStatus = (data.subscribed_status?.rows ?? []).map((r) => ({
+    label: SUBSCRIBED_LABELS[String(r[0])] ?? String(r[0]),
+    value: Number(r[2] ?? 0),
+    sub: "דקות צפייה",
+  }));
+
+  const geo = (data.geography?.rows ?? []).map((r) => ({
+    label: countryLabel(String(r[0])),
+    value: Number(r[1] ?? 0),
+  }));
+
+  const demo = data.demographics?.rows ?? [];
+  const byAge = new Map<string, number>();
+  const byGender = new Map<string, number>();
+  for (const r of demo) {
+    byAge.set(String(r[0]), (byAge.get(String(r[0])) ?? 0) + Number(r[2] ?? 0));
+    byGender.set(String(r[1]), (byGender.get(String(r[1])) ?? 0) + Number(r[2] ?? 0));
+  }
+  const ages = [...byAge.entries()].sort().map(([k, v]) => ({ label: ageLabel(k), value: v }));
+  const genders = [...byGender.entries()].map(([k, v]) => ({ label: GENDER_LABELS[k] ?? k, value: v }));
+
+  const devices = (data.devices?.rows ?? [])
+    .map((r) => ({ label: DEVICE_LABELS[String(r[0])] ?? String(r[0]), value: Number(r[2] ?? 0), sub: "דקות צפייה" }))
+    .sort((a, b) => b.value - a.value);
+
   return (
-    <div className="flex flex-col">
-      <span className="text-2xl font-extrabold">{value}</span>
-      <span className="text-xs text-muted">{label}</span>
+    <div className="flex flex-col gap-4">
+      <section className="bg-surface border border-border rounded-2xl p-5">
+        <h3 className="font-bold text-sm mb-3">שינוי מצטבר במנויים · {period.label}</h3>
+        <AreaChart
+          series={[{ points: subsCumulative, color: CHART.primary, fill: true }]}
+          xFirst={series.length ? fmtDateShort(String(series[0][0])) : ""}
+          xLast={series.length ? fmtDateShort(String(series[series.length - 1][0])) : ""}
+        />
+      </section>
+
+      <div className="grid lg:grid-cols-2 gap-4 items-start">
+        <div className="flex flex-col gap-4">
+          <Card title="זמן צפייה של מנויים" sub={period.label}>
+            <BarList items={subStatus} />
+          </Card>
+          <Card title="אזורים גיאוגרפיים מובילים" sub={`צפיות · ${period.label}`}>
+            {geo.length ? <BarList items={geo} /> : <Empty />}
+          </Card>
+          <DisabledCard title="פילוח קהל: צופים חדשים / אקראיים / קבועים" studioUrl={STUDIO_URL} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <Card title="גיל" sub={`אחוז צפיות · ${period.label}`}>
+            {ages.length ? <BarList items={ages} valueFmt={(v) => `${v.toFixed(1)}%`} /> : <Empty />}
+          </Card>
+          <Card title="מגדר" sub={`אחוז צפיות · ${period.label}`}>
+            {genders.length ? <BarList items={genders} valueFmt={(v) => `${v.toFixed(1)}%`} /> : <Empty />}
+          </Card>
+          <Card title="סוג מכשיר" sub={`זמן צפייה · ${period.label}`}>
+            {devices.length ? <BarList items={devices} /> : <Empty />}
+          </Card>
+          <DisabledCard title="מתי הצופים שלך פעילים ב-YouTube" studioUrl={STUDIO_URL} />
+        </div>
+      </div>
     </div>
   );
 }
 
-/** Simple daily-views area chart (matches the Studio overview graph). */
-function ViewsChart({ series }: { series: { date: string; views: number }[] }) {
-  if (series.length < 2) return null;
-  const W = 600;
-  const H = 140;
-  const max = Math.max(...series.map((p) => p.views), 1);
-  const x = (i: number) => (i / (series.length - 1)) * W;
-  const y = (v: number) => H - (v / max) * (H - 10);
-  const line = series.map((p, i) => `${x(i).toFixed(1)},${y(p.views).toFixed(1)}`).join(" ");
-  const first = series[0].date;
-  const last = series[series.length - 1].date;
-  const fmt = (d: string) => new Date(d).toLocaleDateString("he-IL", { day: "numeric", month: "short" });
+/* ================= shared bits ================= */
+
+function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <div dir="ltr">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        className="w-full h-36 text-accent"
-        role="img"
-        aria-label="גרף צפיות יומי"
-      >
-        <polygon points={`0,${H} ${line} ${W},${H}`} fill="currentColor" opacity="0.15" />
-        <polyline points={line} fill="none" stroke="currentColor" strokeWidth="2" />
-      </svg>
-      <div className="flex justify-between text-[11px] text-muted mt-1">
-        <span>{fmt(first)}</span>
-        <span>מקס׳ יומי: {max.toLocaleString()}</span>
-        <span>{fmt(last)}</span>
-      </div>
+    <section className="bg-surface border border-border rounded-2xl p-5">
+      <h3 className="font-bold text-sm mb-1">{title}</h3>
+      {sub && <p className="text-xs text-muted mb-3">{sub}</p>}
+      {children}
+    </section>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="bg-surface border border-border rounded-2xl p-8 text-center text-sm text-muted">
+      ⏳ טוען נתונים מיוטיוב…
     </div>
   );
+}
+
+function ErrorBox({ msg }: { msg: string }) {
+  return (
+    <div className="bg-surface border border-border rounded-2xl p-6 text-sm text-danger">
+      שגיאה בשליפת הנתונים: {msg}
+    </div>
+  );
+}
+
+function Empty() {
+  return <p className="text-xs text-muted">אין מספיק נתונים לתקופה הזו.</p>;
 }
