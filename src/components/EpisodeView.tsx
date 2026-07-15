@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CoverStudio from "@/components/CoverStudio";
-import { KIND_LABELS, KIND_ORDER, REQUIRED_KINDS, STAGE_LABELS, isPublishReady } from "@/lib/constants";
+import { KIND_LABELS, KIND_ORDER, STAGE_LABELS, isPublishReady, requiredKindsFor } from "@/lib/constants";
 import PublishPanel from "@/components/PublishPanel";
 import AnalyticsPanel from "@/components/AnalyticsPanel";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
@@ -52,6 +52,7 @@ export default function EpisodeView({
   const [loaded, setLoaded] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
   const [videoKey, setVideoKey] = useState<string | null>(null);
+  const [episodeType, setEpisodeType] = useState<string | null>(null);
   const [videoSize, setVideoSize] = useState<number | null>(null);
   const [youtubeStatus, setYoutubeStatus] = useState<string | null>(null);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export default function EpisodeView({
       supabase
         .from("episodes")
         .select(
-          "status, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes, spotify_stats",
+          "status, type, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes, spotify_stats",
         )
         .eq("id", episodeId)
         .single(),
@@ -86,6 +87,7 @@ export default function EpisodeView({
       setStatus(ep.status);
       setThumbnailPath((ep as { thumbnail_path: string | null }).thumbnail_path ?? null);
       setVideoKey((ep as { video_key: string | null }).video_key ?? null);
+      setEpisodeType((ep as { type: string | null }).type ?? null);
       setVideoSize((ep as { video_size: number | null }).video_size ?? null);
       setYoutubeStatus((ep as { youtube_status: string | null }).youtube_status ?? null);
       setYoutubeVideoId((ep as { youtube_video_id: string | null }).youtube_video_id ?? null);
@@ -231,12 +233,14 @@ export default function EpisodeView({
         withExtract={needsExtract || jobs.some((j) => j.stage === "extract")}
       />
 
-      {gens.length > 0 && <ApprovalBar gens={gens} thumbnailReady={!!thumbnailPath} />}
+      {gens.length > 0 && (
+        <ApprovalBar gens={gens} thumbnailReady={!!thumbnailPath} episodeType={episodeType} />
+      )}
 
       {gens.length > 0 && (
         <PublishPanel
           episodeId={episodeId}
-          locked={!isPublishReady(gens, !!thumbnailPath)}
+          locked={!isPublishReady(gens, !!thumbnailPath, episodeType)}
           hasVideo={!!videoKey || youtubeStatus === "published" || youtubeStatus === "scheduled"}
           youtubeStatus={youtubeStatus}
           youtubeVideoId={youtubeVideoId}
@@ -458,21 +462,30 @@ function SelectStar({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: 
   );
 }
 
-function ApprovalBar({ gens, thumbnailReady }: { gens: Generation[]; thumbnailReady: boolean }) {
+function ApprovalBar({
+  gens,
+  thumbnailReady,
+  episodeType,
+}: {
+  gens: Generation[];
+  thumbnailReady: boolean;
+  episodeType: string | null;
+}) {
+  const required = requiredKindsFor(episodeType);
   const isApproved = (k: GenerationKind) =>
     k === "thumbnail" ? thumbnailReady : gens.some((g) => g.kind === k && g.selected);
-  const done = REQUIRED_KINDS.filter(isApproved).length;
-  const allDone = isPublishReady(gens, thumbnailReady);
+  const done = required.filter(isApproved).length;
+  const allDone = isPublishReady(gens, thumbnailReady, episodeType);
   return (
     <div className="bg-surface border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="font-bold text-sm">{allDone ? "✓ מוכן לפרסום" : "מה צריך לאשר לפני פרסום"}</span>
         <span className="text-xs text-muted">
-          {done}/{REQUIRED_KINDS.length} אושרו
+          {done}/{required.length} אושרו
         </span>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {REQUIRED_KINDS.map((k) => (
+        {required.map((k) => (
           <span
             key={k}
             className={`text-xs flex items-center gap-1 ${isApproved(k) ? "text-success font-medium" : "text-muted"}`}

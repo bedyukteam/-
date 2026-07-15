@@ -28,6 +28,14 @@ export const REQUIRED_KINDS: GenerationKind[] = [
   "thumbnail",
 ];
 
+// Shorts skip the thumbnail flow entirely — YouTube Shorts don't show custom
+// thumbnails, so only title + description gate their publish.
+export const SHORT_REQUIRED_KINDS: GenerationKind[] = ["title", "description"];
+
+export function requiredKindsFor(episodeType: string | null | undefined): GenerationKind[] {
+  return episodeType === "short" ? SHORT_REQUIRED_KINDS : REQUIRED_KINDS;
+}
+
 export const STAGE_LABELS: Record<JobStage, string> = {
   extract: "חילוץ אודיו מהוידאו",
   transcribe: "תמלול הפרק",
@@ -42,9 +50,13 @@ export const STATUS_LABELS: Record<string, string> = {
   error: "שגיאה",
 };
 
-/** Same "4/4 approved" rule ApprovalBar renders — shared so EpisodeView can gate PublishPanel on it too. */
-export function isPublishReady(gens: Generation[], thumbnailReady: boolean): boolean {
-  return REQUIRED_KINDS.every((k) =>
+/** Same "approved" rule ApprovalBar renders — shared so EpisodeView can gate PublishPanel on it too. */
+export function isPublishReady(
+  gens: Generation[],
+  thumbnailReady: boolean,
+  episodeType?: string | null,
+): boolean {
+  return requiredKindsFor(episodeType).every((k) =>
     k === "thumbnail" ? thumbnailReady : gens.some((g) => g.kind === k && g.selected),
   );
 }
