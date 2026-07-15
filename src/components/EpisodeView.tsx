@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import CoverStudio from "@/components/CoverStudio";
 import { KIND_LABELS, KIND_ORDER, REQUIRED_KINDS, STAGE_LABELS, isPublishReady } from "@/lib/constants";
 import PublishPanel from "@/components/PublishPanel";
+import AnalyticsPanel from "@/components/AnalyticsPanel";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
 
 const TERMINAL = new Set(["ready"]);
@@ -242,6 +243,15 @@ export default function EpisodeView({
           youtubeError={youtubeError}
           uploadedBytes={youtubeUploadedBytes}
           totalBytes={videoSize ?? 0}
+          onChange={load}
+        />
+      )}
+
+      {gens.length > 0 && (
+        <AnalyticsPanel
+          episodeId={episodeId}
+          youtubeVideoId={youtubeVideoId}
+          spotifyStats={spotifyStats}
           onChange={load}
         />
       )}
