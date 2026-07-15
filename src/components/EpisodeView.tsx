@@ -312,6 +312,8 @@ export default function EpisodeView({
       {KIND_ORDER.map((kind) => {
         // AI thumbnail images are superseded by the cover studio — hide that section.
         if (kind === "thumbnail") return null;
+        // Quotes/carousels/ideas live on the dedicated "רעיונות לתוכן" page — not part of publishing.
+        if (kind === "carousel" || kind === "quote" || kind === "idea") return null;
         const items = byKind(kind);
         if (items.length === 0) return null;
         return (
@@ -327,6 +329,16 @@ export default function EpisodeView({
           />
         );
       })}
+
+      {gens.some((g) => g.kind === "carousel" || g.kind === "quote" || g.kind === "idea") && (
+        <a
+          href={`/ideas?episode=${episodeId}`}
+          className="bg-surface border border-border rounded-2xl p-4 text-sm font-medium hover:border-accent transition flex items-center justify-between"
+        >
+          <span>💡 רעיונות לתוכן מהפרק הזה — ציטוטים, קרוסלות ורעיונות</span>
+          <span className="text-accent">פתיחה ←</span>
+        </a>
+      )}
 
       {transcript && <TranscriptBlock transcript={transcript} />}
     </div>
@@ -639,7 +651,7 @@ function FinalThumbnailPanel({
   );
 }
 
-function CopyBtn({ text }: { text: string }) {
+export function CopyBtn({ text }: { text: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -655,7 +667,7 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-function TextItem({
+export function TextItem({
   gen,
   editable,
   onToggleSelect,
@@ -710,7 +722,7 @@ function TextItem({
   );
 }
 
-function CarouselCard({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: (g: Generation) => void }) {
+export function CarouselCard({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: (g: Generation) => void }) {
   const title = (gen.content.title as string) ?? "";
   const slides = (gen.content.slides as string[]) ?? [];
   const copyText = [title, ...slides.map((s, i) => `${i + 1}. ${s}`)].join("\n");

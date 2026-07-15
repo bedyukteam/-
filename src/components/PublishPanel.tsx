@@ -62,7 +62,7 @@ export default function PublishPanel({
     <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
       <h3 className="font-bold text-sm">פרסום ליוטיוב</h3>
 
-      {locked && <p className="text-xs text-muted">נעול עד שכל 4 האישורים הנדרשים למעלה יושלמו.</p>}
+      {locked && <p className="text-xs text-muted">נעול עד שכל האישורים הנדרשים למעלה יושלמו.</p>}
 
       {!locked && isLive && youtubeVideoId && (
         <div className="text-sm">
