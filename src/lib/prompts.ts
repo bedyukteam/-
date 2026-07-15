@@ -34,10 +34,25 @@ const BASE_SYSTEM =
   "החזר/י אך ורק JSON תקין לפי המבנה המבוקש, ללא טקסט נוסף.";
 
 /**
+ * Shorts get a different description brief than full podcast episodes: a short
+ * video needs a hooky 2-4 sentence blurb, hashtags, and several CTA variants
+ * that push viewers to more content on the channel — not "בפרק הזה תגלו" bullets.
+ */
+const SHORT_DESCRIPTIONS_SPEC =
+  `"descriptions": [3 גרסאות תיאור לשורט ביוטיוב. כל גרסה: 2-4 משפטים קצרים וקליטים שנפתחים בוו מסקרן ` +
+  `(בלי רשימת 'בפרק הזה תגלו'), 2-3 האשטגים רלוונטיים בעברית + #Shorts בסוף, ` +
+  `וכל גרסה מסתיימת בהנעה-לפעולה שונה לראות עוד תוכן בעמוד — למשל: לצפות בפרק המלא, לעקוב אחרי הערוץ, לצפות בעוד שורטס בנושא]`;
+
+/**
  * One consolidated call that produces the whole content package — avoids the
  * per-minute token limit you hit when running 6 generations in parallel.
  */
-export function buildAllContentPrompt(transcript: string, ctx: StyleContext) {
+export function buildAllContentPrompt(
+  transcript: string,
+  ctx: StyleContext,
+  episodeType?: string | null,
+) {
+  const isShort = episodeType === "short";
   const system =
     BASE_SYSTEM +
     guidelinesBlock(ctx.languageGuidelines, "שפה") +
@@ -47,12 +62,19 @@ export function buildAllContentPrompt(transcript: string, ctx: StyleContext) {
     examplesBlock(ctx.examples.description, "תיאורים") +
     examplesBlock(ctx.examples.carousel, "קרוסלות") +
     examplesBlock(ctx.examples.quote, "ציטוטים");
+  const descriptionSpec = isShort
+    ? SHORT_DESCRIPTIONS_SPEC
+    : `"description": "תיאור פרק: פסקה פותחת מסקרנת + 4-6 נקודות 'בפרק הזה תגלו' + קריאה לפעולה (שורות חדשות)"`;
   const user =
-    `על בסיס תמלול הפרק, הפק/י חבילת תוכן מלאה בעברית. החזר/י JSON יחיד בלבד במבנה:\n` +
+    (isShort
+      ? `על בסיס תמלול השורט (סרטון יוטיוב קצר), הפק/י חבילת תוכן מלאה בעברית. החזר/י JSON יחיד בלבד במבנה:\n`
+      : `על בסיס תמלול הפרק, הפק/י חבילת תוכן מלאה בעברית. החזר/י JSON יחיד בלבד במבנה:\n`) +
     `{\n` +
-    `  "titles": [5 כותרות לפרק, עד ~70 תווים, מסקרנות ולא clickbait זול],\n` +
+    (isShort
+      ? `  "titles": [5 כותרות לשורט, קצרות וקליטות עד ~50 תווים, וו חזק שמושך צפייה מיידית],\n`
+      : `  "titles": [5 כותרות לפרק, עד ~70 תווים, מסקרנות ולא clickbait זול],\n`) +
     `  "thumbnail_titles": [5 כותרות קצרות מאוד לתמונה הממוזערת, 2-4 מילים],\n` +
-    `  "description": "תיאור פרק: פסקה פותחת מסקרנת + 4-6 נקודות 'בפרק הזה תגלו' + קריאה לפעולה (שורות חדשות)",\n` +
+    `  ${descriptionSpec},\n` +
     `  "carousels": [5 פריטים {"title": "...", "slides": ["שקופית קצרה", ... 4-6 סה""כ, האחרונה CTA]}],\n` +
     `  "quotes": [5 ציטוטים חזקים מהתמלול, מנוסחים לפוסט קצר וניתן לשיתוף],\n` +
     `  "ideas": [6 פריטים {"text": "רעיון לתוכן נוסף", "format": "שורט/ריל/בלוג/סקר/..."}],\n` +
@@ -88,16 +110,24 @@ export function buildThumbnailTitlePrompt(transcript: string, ctx: StyleContext)
   return { system, user };
 }
 
-export function buildDescriptionPrompt(transcript: string, ctx: StyleContext) {
+export function buildDescriptionPrompt(
+  transcript: string,
+  ctx: StyleContext,
+  episodeType?: string | null,
+) {
   const system =
     BASE_SYSTEM +
     guidelinesBlock(ctx.languageGuidelines, "שפה") +
     examplesBlock(ctx.examples.description, "תיאורים");
   const user =
-    `כתוב/כתבי תיאור פרק ליוטיוב: פסקה פותחת מסקרנת (2-3 משפטים), ` +
-    `ואז 4-6 נקודות "בפרק הזה תגלו" כ-bullets, וקריאה לפעולה בסוף.\n\n` +
-    `החזר/י JSON: {"description": "טקסט התיאור המלא עם שורות חדשות"}\n\n` +
-    `### תמלול:\n${clip(transcript)}`;
+    episodeType === "short"
+      ? `כתוב/כתבי תיאורים לשורט ביוטיוב (סרטון קצר). החזר/י JSON:\n` +
+        `{${SHORT_DESCRIPTIONS_SPEC}}\n\n` +
+        `### תמלול:\n${clip(transcript)}`
+      : `כתוב/כתבי תיאור פרק ליוטיוב: פסקה פותחת מסקרנת (2-3 משפטים), ` +
+        `ואז 4-6 נקודות "בפרק הזה תגלו" כ-bullets, וקריאה לפעולה בסוף.\n\n` +
+        `החזר/י JSON: {"description": "טקסט התיאור המלא עם שורות חדשות"}\n\n` +
+        `### תמלול:\n${clip(transcript)}`;
   return { system, user };
 }
 

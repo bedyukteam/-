@@ -174,23 +174,31 @@ export async function runTranscribe(sb: SupabaseClient, episodeId: string): Prom
 }
 
 /* ---------------- Stage 2: text generation ---------------- */
-async function generateAllText(transcript: string, ctx: StyleContext, episodeId: string) {
+async function generateAllText(
+  transcript: string,
+  ctx: StyleContext,
+  episodeId: string,
+  episodeType?: string | null,
+) {
   const r = await chatJSON<{
     titles?: string[];
     thumbnail_titles?: string[];
     description?: string;
+    descriptions?: string[]; // shorts: 3 variants, each with a different CTA
     carousels?: { title: string; slides: string[] }[];
     quotes?: string[];
     ideas?: { text: string; format?: string }[];
     thumbnails?: { concept: string; overlay_text: string; visual: string }[];
-  }>(...promptArgs(buildAllContentPrompt(transcript, ctx)));
+  }>(...promptArgs(buildAllContentPrompt(transcript, ctx, episodeType)));
 
   const rows: GenRow[] = [];
   for (const t of (r.titles ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "title", content: { text: t } });
   for (const t of (r.thumbnail_titles ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "thumbnail_title", content: { text: t } });
-  if (r.description)
+  for (const d of (r.descriptions ?? []).slice(0, 3))
+    rows.push({ episode_id: episodeId, kind: "description", content: { text: d } });
+  if (r.description && !r.descriptions?.length)
     rows.push({ episode_id: episodeId, kind: "description", content: { text: r.description } });
   for (const c of (r.carousels ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "carousel", content: { title: c.title, slides: c.slides } });
@@ -204,7 +212,11 @@ async function generateAllText(transcript: string, ctx: StyleContext, episodeId:
 }
 
 export async function runGenerate(sb: SupabaseClient, episodeId: string): Promise<NextStage> {
-  const { data: ep } = await sb.from("episodes").select("channel_id").eq("id", episodeId).single();
+  const { data: ep } = await sb
+    .from("episodes")
+    .select("channel_id, type")
+    .eq("id", episodeId)
+    .single();
   const { data: tr } = await sb
     .from("transcripts")
     .select("text")
@@ -215,7 +227,7 @@ export async function runGenerate(sb: SupabaseClient, episodeId: string): Promis
   const job = await startJob(sb, episodeId, "generate");
   try {
     const ctx = await getStyleContext(sb, ep.channel_id as string);
-    const { rows } = await generateAllText(tr.text as string, ctx, episodeId);
+    const { rows } = await generateAllText(tr.text as string, ctx, episodeId, ep.type as string);
     await sb.from("generations").delete().eq("episode_id", episodeId);
     if (rows.length) await sb.from("generations").insert(rows);
     await finishJob(sb, job);
@@ -298,7 +310,11 @@ export async function regenerateKind(
   kind: GenerationKind,
   feedback?: string,
 ) {
-  const { data: ep } = await sb.from("episodes").select("channel_id").eq("id", episodeId).single();
+  const { data: ep } = await sb
+    .from("episodes")
+    .select("channel_id, type")
+    .eq("id", episodeId)
+    .single();
   const { data: tr } = await sb
     .from("transcripts")
     .select("text")
@@ -324,8 +340,12 @@ export async function regenerateKind(
     );
     rows = (r.thumbnail_titles ?? []).slice(0, 5).map((t) => ({ episode_id: episodeId, kind, content: { text: t } }));
   } else if (kind === "description") {
-    const r = await chatJSON<{ description: string }>(...promptArgs(buildDescriptionPrompt(transcript, ctx)));
-    rows = [{ episode_id: episodeId, kind, content: { text: r.description } }];
+    const r = await chatJSON<{ description?: string; descriptions?: string[] }>(
+      ...promptArgs(buildDescriptionPrompt(transcript, ctx, ep.type as string)),
+    );
+    rows = r.descriptions?.length
+      ? r.descriptions.slice(0, 3).map((d) => ({ episode_id: episodeId, kind, content: { text: d } }))
+      : [{ episode_id: episodeId, kind, content: { text: r.description ?? "" } }];
   } else if (kind === "carousel") {
     const r = await chatJSON<{ carousels: { title: string; slides: string[] }[] }>(
       ...promptArgs(buildCarouselsPrompt(transcript, ctx)),
