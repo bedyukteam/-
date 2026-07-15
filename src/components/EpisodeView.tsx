@@ -256,11 +256,13 @@ export default function EpisodeView({
           episodeId={episodeId}
           youtubeVideoId={youtubeVideoId}
           spotifyStats={spotifyStats}
+          showSpotify={episodeType !== "short"}
           onChange={load}
         />
       )}
 
-      {gens.length > 0 && (
+      {/* Shorts don't use a custom thumbnail — the cover/Canva panels are podcast-only. */}
+      {gens.length > 0 && episodeType !== "short" && (
         <CoverStudio
           episodeId={episodeId}
           proposedTitle={proposedCoverTitle}
@@ -271,7 +273,7 @@ export default function EpisodeView({
         />
       )}
 
-      {gens.length > 0 && (
+      {gens.length > 0 && episodeType !== "short" && (
         <FinalThumbnailPanel
           episodeId={episodeId}
           canvaUrl={canvaUrl}
@@ -314,6 +316,8 @@ export default function EpisodeView({
         if (kind === "thumbnail") return null;
         // Quotes/carousels/ideas live on the dedicated "רעיונות לתוכן" page — not part of publishing.
         if (kind === "carousel" || kind === "quote" || kind === "idea") return null;
+        // Shorts have no custom thumbnail — cover-title options are podcast-only.
+        if (kind === "thumbnail_title" && episodeType === "short") return null;
         const items = byKind(kind);
         if (items.length === 0) return null;
         return (

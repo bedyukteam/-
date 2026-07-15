@@ -21,11 +21,14 @@ export default function AnalyticsPanel({
   episodeId,
   youtubeVideoId,
   spotifyStats,
+  showSpotify = true,
   onChange,
 }: {
   episodeId: string;
   youtubeVideoId: string | null;
   spotifyStats: SpotifyStats | null;
+  /** Shorts are YouTube-only — hide the Spotify CSV section for them. */
+  showSpotify?: boolean;
   onChange: () => void;
 }) {
   const [yt, setYt] = useState<YouTubeAnalytics | null>(null);
@@ -82,6 +85,7 @@ export default function AnalyticsPanel({
         )}
       </div>
 
+      {showSpotify && (
       <div>
         <h4 className="font-semibold text-xs text-muted mb-2">ספוטיפיי (העלאת CSV ידנית)</h4>
         <p className="text-xs text-muted mb-2">
@@ -103,6 +107,7 @@ export default function AnalyticsPanel({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
