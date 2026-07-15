@@ -36,6 +36,38 @@ const BASE_SYSTEM =
   "החזר/י אך ורק JSON תקין לפי המבנה המבוקש, ללא טקסט נוסף.";
 
 /**
+ * Fixed signature appended (in code, never by the LLM — it would mangle the
+ * links) to the end of every full podcast episode description. Shorts don't
+ * get it. Verbatim text provided by the user, 2026-07-15.
+ */
+export const PODCAST_DESCRIPTION_FOOTER = `אל תתפשרו. תדייקו.🎯
+
+------------------------------------------------------------------
+
+תודעת דיוק יכולה לשנות לכם את החיים ואני כאן לא כדי "לשפר אתכם",
+אלא כדי להזכיר לכם מי אתם באמת.
+זו עבודה פנימית שמובילה לחיים שמרגישים מדויקים, חופשיים ומלאי משמעות.
+וזה אפשרי – בכל גיל, בכל שלב, גם אצלכם.
+
+📌 כל הדרכים להתחבר אליי:
+לאינסטגרם: https://instagram.com/yona__md/?igshi
+לפייסבוק: https://tiktok.com/@yona_md?_t=8hfxKI
+לטיקטוק: https://tiktok.com/@yona_md?_t=8hfxKI
+לספוטיפיי: https://open.spotify.com/show/5dukfgO...
+לאתר: https://www.yonamd.com
+לשיתופי פעולה: yonamd@gmail.com
+לעמותות ועסקים שרוצים לדייק את השיווק שלהם: https://bit.ly/4hyGR33
+
+כל הקישורים גם כאן https://linktr.ee/yonamd
+
+✨ אם הפרק הזה נגע בכם – שתפו אותו עם מישהו/י
+שזה בדיוק מה שהוא/היא צריכים לשמוע.
+תרשמו לערוץ, תגיבו – אני קוראת הכל.
+ונתראה בפרק הבא.
+אל תתפשרו – תדייקו.
+יונה.`;
+
+/**
  * Shorts get a different description brief than full podcast episodes: a short
  * video needs a hooky 2-4 sentence blurb, hashtags, and several CTA variants
  * that push viewers to more content on the channel — not "בפרק הזה תגלו" bullets.
@@ -70,7 +102,7 @@ export function buildAllContentPrompt(
     examplesBlock(ctx.examples.quote, "ציטוטים");
   const descriptionSpec = isShort
     ? SHORT_DESCRIPTIONS_SPEC
-    : `"description": "תיאור פרק: פסקה פותחת מסקרנת + 4-6 נקודות 'בפרק הזה תגלו' + קריאה לפעולה (שורות חדשות)"`;
+    : `"description": "תיאור פרק: פסקה פותחת מסקרנת + 4-6 נקודות 'בפרק הזה תגלו' + קריאה לפעולה (שורות חדשות; בלי חתימה וקישורים — חתימת-ערוץ קבועה מתווספת אוטומטית בסוף)"`;
   const user =
     (isShort
       ? `על בסיס תמלול השורט (סרטון יוטיוב קצר), הפק/י חבילת תוכן מלאה בעברית. החזר/י JSON יחיד בלבד במבנה:\n`
@@ -131,7 +163,8 @@ export function buildDescriptionPrompt(
         `{${SHORT_DESCRIPTIONS_SPEC}}\n\n` +
         `### תמלול:\n${clip(transcript)}`
       : `כתוב/כתבי תיאור פרק ליוטיוב: פסקה פותחת מסקרנת (2-3 משפטים), ` +
-        `ואז 4-6 נקודות "בפרק הזה תגלו" כ-bullets, וקריאה לפעולה בסוף.\n\n` +
+        `ואז 4-6 נקודות "בפרק הזה תגלו" כ-bullets, וקריאה לפעולה בסוף. ` +
+        `בלי חתימה וקישורים — חתימת-ערוץ קבועה מתווספת אוטומטית בסוף.\n\n` +
         `החזר/י JSON: {"description": "טקסט התיאור המלא עם שורות חדשות"}\n\n` +
         `### תמלול:\n${clip(transcript)}`;
   return { system, user };

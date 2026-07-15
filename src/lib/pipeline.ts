@@ -3,6 +3,7 @@ import { chatJSON, generateThumbnail, transcribeChunk } from "./openai";
 import { extractAudioChunks, extractPodcastAudio } from "./audio";
 import { signGetUrl, uploadBuffer } from "./r2";
 import {
+  PODCAST_DESCRIPTION_FOOTER,
   StyleContext,
   buildAllContentPrompt,
   buildTitlesPrompt,
@@ -198,8 +199,14 @@ async function generateAllText(
     rows.push({ episode_id: episodeId, kind: "thumbnail_title", content: { text: t } });
   for (const d of (r.descriptions ?? []).slice(0, 3))
     rows.push({ episode_id: episodeId, kind: "description", content: { text: d } });
-  if (r.description && !r.descriptions?.length)
-    rows.push({ episode_id: episodeId, kind: "description", content: { text: r.description } });
+  if (r.description && !r.descriptions?.length) {
+    // Full podcast episodes always end with the fixed channel signature.
+    const text =
+      episodeType === "short"
+        ? r.description
+        : `${r.description.trimEnd()}\n\n${PODCAST_DESCRIPTION_FOOTER}`;
+    rows.push({ episode_id: episodeId, kind: "description", content: { text } });
+  }
   for (const c of (r.carousels ?? []).slice(0, 5))
     rows.push({ episode_id: episodeId, kind: "carousel", content: { title: c.title, slides: c.slides } });
   for (const q of (r.quotes ?? []).slice(0, 5))
@@ -343,9 +350,11 @@ export async function regenerateKind(
     const r = await chatJSON<{ description?: string; descriptions?: string[] }>(
       ...promptArgs(buildDescriptionPrompt(transcript, ctx, ep.type as string)),
     );
+    const withFooter = (d: string) =>
+      ep.type === "short" ? d : `${d.trimEnd()}\n\n${PODCAST_DESCRIPTION_FOOTER}`;
     rows = r.descriptions?.length
       ? r.descriptions.slice(0, 3).map((d) => ({ episode_id: episodeId, kind, content: { text: d } }))
-      : [{ episode_id: episodeId, kind, content: { text: r.description ?? "" } }];
+      : [{ episode_id: episodeId, kind, content: { text: withFooter(r.description ?? "") } }];
   } else if (kind === "carousel") {
     const r = await chatJSON<{ carousels: { title: string; slides: string[] }[] }>(
       ...promptArgs(buildCarouselsPrompt(transcript, ctx)),
