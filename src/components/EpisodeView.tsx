@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import CoverStudio from "@/components/CoverStudio";
 import { KIND_LABELS, KIND_ORDER, STAGE_LABELS, isPublishReady, requiredKindsFor } from "@/lib/constants";
 import PublishPanel from "@/components/PublishPanel";
-import AnalyticsPanel from "@/components/AnalyticsPanel";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
 
 const TERMINAL = new Set(["ready"]);
@@ -58,12 +57,6 @@ export default function EpisodeView({
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeUploadedBytes, setYoutubeUploadedBytes] = useState(0);
-  const [spotifyStats, setSpotifyStats] = useState<{
-    streams: number | null;
-    listeners: number | null;
-    starts: number | null;
-    uploaded_at: string;
-  } | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
   const drivingRef = useRef(false);
 
@@ -75,7 +68,7 @@ export default function EpisodeView({
       supabase
         .from("episodes")
         .select(
-          "status, type, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes, spotify_stats",
+          "status, type, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes",
         )
         .eq("id", episodeId)
         .single(),
@@ -93,7 +86,6 @@ export default function EpisodeView({
       setYoutubeVideoId((ep as { youtube_video_id: string | null }).youtube_video_id ?? null);
       setYoutubeError((ep as { youtube_error: string | null }).youtube_error ?? null);
       setYoutubeUploadedBytes((ep as { youtube_uploaded_bytes: number }).youtube_uploaded_bytes ?? 0);
-      setSpotifyStats((ep as { spotify_stats: typeof spotifyStats }).spotify_stats ?? null);
     }
     setJobs((j ?? []) as Job[]);
     setTranscript((tr as Transcript) ?? null);
@@ -247,16 +239,6 @@ export default function EpisodeView({
           youtubeError={youtubeError}
           uploadedBytes={youtubeUploadedBytes}
           totalBytes={videoSize ?? 0}
-          onChange={load}
-        />
-      )}
-
-      {gens.length > 0 && (
-        <AnalyticsPanel
-          episodeId={episodeId}
-          youtubeVideoId={youtubeVideoId}
-          spotifyStats={spotifyStats}
-          showSpotify={episodeType !== "short"}
           onChange={load}
         />
       )}

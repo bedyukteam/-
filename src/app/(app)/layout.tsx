@@ -27,6 +27,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/ideas" className="hover:text-accent transition">
               רעיונות לתוכן
             </Link>
+            <Link href="/analytics" className="hover:text-accent transition">
+              אנליטיקס
+            </Link>
             <Link href="/settings" className="hover:text-accent transition">
               הנחיות סגנון
             </Link>
