@@ -1,4 +1,4 @@
-import type { GenerationKind, JobStage } from "./types";
+import type { Generation, GenerationKind, JobStage } from "./types";
 
 export const KIND_LABELS: Record<GenerationKind, string> = {
   title: "כותרות לפרק",
@@ -41,3 +41,10 @@ export const STATUS_LABELS: Record<string, string> = {
   ready: "מוכן",
   error: "שגיאה",
 };
+
+/** Same "4/4 approved" rule ApprovalBar renders — shared so EpisodeView can gate PublishPanel on it too. */
+export function isPublishReady(gens: Generation[], thumbnailReady: boolean): boolean {
+  return REQUIRED_KINDS.every((k) =>
+    k === "thumbnail" ? thumbnailReady : gens.some((g) => g.kind === k && g.selected),
+  );
+}

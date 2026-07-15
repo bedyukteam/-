@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CoverStudio from "@/components/CoverStudio";
-import { KIND_LABELS, KIND_ORDER, REQUIRED_KINDS, STAGE_LABELS } from "@/lib/constants";
+import { KIND_LABELS, KIND_ORDER, REQUIRED_KINDS, STAGE_LABELS, isPublishReady } from "@/lib/constants";
+import PublishPanel from "@/components/PublishPanel";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
 
 const TERMINAL = new Set(["ready"]);
@@ -50,6 +51,17 @@ export default function EpisodeView({
   const [loaded, setLoaded] = useState(false);
   const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
   const [videoKey, setVideoKey] = useState<string | null>(null);
+  const [videoSize, setVideoSize] = useState<number | null>(null);
+  const [youtubeStatus, setYoutubeStatus] = useState<string | null>(null);
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [youtubeUploadedBytes, setYoutubeUploadedBytes] = useState(0);
+  const [spotifyStats, setSpotifyStats] = useState<{
+    streams: number | null;
+    listeners: number | null;
+    starts: number | null;
+    uploaded_at: string;
+  } | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
   const drivingRef = useRef(false);
 
@@ -58,7 +70,13 @@ export default function EpisodeView({
 
   const load = useCallback(async () => {
     const [{ data: ep }, { data: j }, { data: tr }, { data: g }] = await Promise.all([
-      supabase.from("episodes").select("status, thumbnail_path, video_key").eq("id", episodeId).single(),
+      supabase
+        .from("episodes")
+        .select(
+          "status, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes, spotify_stats",
+        )
+        .eq("id", episodeId)
+        .single(),
       supabase.from("jobs").select("*").eq("episode_id", episodeId).order("created_at"),
       supabase.from("transcripts").select("*").eq("episode_id", episodeId).maybeSingle(),
       supabase.from("generations").select("*").eq("episode_id", episodeId).order("created_at"),
@@ -67,6 +85,12 @@ export default function EpisodeView({
       setStatus(ep.status);
       setThumbnailPath((ep as { thumbnail_path: string | null }).thumbnail_path ?? null);
       setVideoKey((ep as { video_key: string | null }).video_key ?? null);
+      setVideoSize((ep as { video_size: number | null }).video_size ?? null);
+      setYoutubeStatus((ep as { youtube_status: string | null }).youtube_status ?? null);
+      setYoutubeVideoId((ep as { youtube_video_id: string | null }).youtube_video_id ?? null);
+      setYoutubeError((ep as { youtube_error: string | null }).youtube_error ?? null);
+      setYoutubeUploadedBytes((ep as { youtube_uploaded_bytes: number }).youtube_uploaded_bytes ?? 0);
+      setSpotifyStats((ep as { spotify_stats: typeof spotifyStats }).spotify_stats ?? null);
     }
     setJobs((j ?? []) as Job[]);
     setTranscript((tr as Transcript) ?? null);
@@ -207,6 +231,20 @@ export default function EpisodeView({
       />
 
       {gens.length > 0 && <ApprovalBar gens={gens} thumbnailReady={!!thumbnailPath} />}
+
+      {gens.length > 0 && (
+        <PublishPanel
+          episodeId={episodeId}
+          locked={!isPublishReady(gens, !!thumbnailPath)}
+          hasVideo={!!videoKey || youtubeStatus === "published" || youtubeStatus === "scheduled"}
+          youtubeStatus={youtubeStatus}
+          youtubeVideoId={youtubeVideoId}
+          youtubeError={youtubeError}
+          uploadedBytes={youtubeUploadedBytes}
+          totalBytes={videoSize ?? 0}
+          onChange={load}
+        />
+      )}
 
       {gens.length > 0 && (
         <CoverStudio
@@ -414,7 +452,7 @@ function ApprovalBar({ gens, thumbnailReady }: { gens: Generation[]; thumbnailRe
   const isApproved = (k: GenerationKind) =>
     k === "thumbnail" ? thumbnailReady : gens.some((g) => g.kind === k && g.selected);
   const done = REQUIRED_KINDS.filter(isApproved).length;
-  const allDone = done === REQUIRED_KINDS.length;
+  const allDone = isPublishReady(gens, thumbnailReady);
   return (
     <div className="bg-surface border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-2">
