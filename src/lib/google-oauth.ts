@@ -7,6 +7,9 @@ export const YOUTUBE_SCOPES = [
   "https://www.googleapis.com/auth/youtube.upload",
   "https://www.googleapis.com/auth/youtube",
   "https://www.googleapis.com/auth/yt-analytics.readonly",
+  // Revenue reports (estimatedRevenue etc.) — probed live 2026-07-16: the API
+  // returns "Insufficient permission" without this scope.
+  "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
 ].join(" ");
 
 export function buildAuthorizeUrl(state: string): string {

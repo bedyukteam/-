@@ -105,3 +105,31 @@ export async function fetchVideoTitles(accessToken: string, videoIds: string[]):
   }
   return map;
 }
+
+export interface VideoMeta {
+  title: string;
+  publishedAt: string;
+  durationSec: number;
+}
+
+/** id → {title, publishedAt, durationSec} for a batch of videos. */
+export async function fetchVideosMeta(
+  accessToken: string,
+  videoIds: string[],
+): Promise<Record<string, VideoMeta>> {
+  const map: Record<string, VideoMeta> = {};
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const j = await ytGet(accessToken, "videos", {
+      part: "snippet,contentDetails",
+      id: videoIds.slice(i, i + 50).join(","),
+    });
+    for (const v of j.items ?? []) {
+      map[v.id] = {
+        title: v.snippet?.title ?? v.id,
+        publishedAt: v.snippet?.publishedAt ?? "",
+        durationSec: parseIsoDuration(v.contentDetails?.duration ?? ""),
+      };
+    }
+  }
+  return map;
+}
