@@ -27,7 +27,7 @@ export default function PublishPanel({
   const [publishAt, setPublishAt] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function publish() {
+  async function publish(publishAtIso: string | null) {
     setBusy(true);
     try {
       let done = false;
@@ -35,7 +35,7 @@ export default function PublishPanel({
         const res = await fetch(`/api/episodes/${episodeId}/youtube/upload-chunk`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ publishAt: publishAt ? new Date(publishAt).toISOString() : null }),
+          body: JSON.stringify({ publishAt: publishAtIso }),
         });
         const json: { done?: boolean; error?: string } = await res.json().catch(() => ({ error: "שגיאת רשת" }));
         onChange();
@@ -102,19 +102,34 @@ export default function PublishPanel({
             </div>
           )}
 
-          <button
-            onClick={publish}
-            disabled={busy}
-            className="self-start bg-accent text-accent-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
-          >
-            {busy
-              ? `מעלה… ${progress}%`
-              : youtubeStatus === "uploading"
-                ? "המשך העלאה"
-                : publishAt
-                  ? "תזמן"
-                  : "פרסם עכשיו"}
-          </button>
+          {youtubeStatus === "uploading" ? (
+            <button
+              onClick={() => publish(publishAt ? new Date(publishAt).toISOString() : null)}
+              disabled={busy}
+              className="self-start bg-accent text-accent-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+            >
+              {busy ? `מעלה… ${progress}%` : "המשך העלאה"}
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => publish(null)}
+                disabled={busy}
+                className="bg-accent text-accent-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {busy ? `מעלה… ${progress}%` : "פרסם"}
+              </button>
+              <button
+                onClick={() => publish(new Date(publishAt).toISOString())}
+                disabled={busy || !publishAt}
+                title={publishAt ? "" : "בחרי תאריך ושעה כדי לתזמן"}
+                className="border border-border rounded-lg px-5 py-2.5 font-semibold hover:border-accent disabled:opacity-50 transition"
+              >
+                תזמן
+              </button>
+              <span className="text-xs text-muted">פרסם = עולה מיד בגלוי לכולם · תזמן = לפי התאריך שנבחר</span>
+            </div>
+          )}
         </>
       )}
     </div>
