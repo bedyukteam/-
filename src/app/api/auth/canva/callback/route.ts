@@ -15,6 +15,13 @@ export async function GET(req: Request) {
   cookieStore.delete("canva_oauth_verifier");
 
   if (!code || !state || !verifier || state !== expectedState) {
+    console.error("[canva-callback] state check failed:", {
+      hasCode: !!code,
+      hasState: !!state,
+      hasVerifier: !!verifier,
+      stateMatches: state === expectedState,
+      host: url.host,
+    });
     return NextResponse.redirect(new URL("/settings?canva=error", req.url));
   }
 
@@ -27,6 +34,7 @@ export async function GET(req: Request) {
   try {
     const tokens = await exchangeCode(code, verifier);
     if (!tokens.refresh_token) {
+      console.error("[canva-callback] token response missing refresh_token");
       return NextResponse.redirect(new URL("/settings?canva=error", req.url));
     }
     const { error: upsertErr } = await supabase.from("oauth_tokens").upsert(
@@ -40,10 +48,12 @@ export async function GET(req: Request) {
       { onConflict: "provider" },
     );
     if (upsertErr) {
+      console.error("[canva-callback] oauth_tokens upsert failed:", upsertErr.message);
       return NextResponse.redirect(new URL("/settings?canva=error", req.url));
     }
     return NextResponse.redirect(new URL("/settings?canva=connected", req.url));
-  } catch {
+  } catch (e) {
+    console.error("[canva-callback] token exchange failed:", e instanceof Error ? e.message : e);
     return NextResponse.redirect(new URL("/settings?canva=error", req.url));
   }
 }
