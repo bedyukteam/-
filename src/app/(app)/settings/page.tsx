@@ -1,18 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import SettingsForm from "@/components/SettingsForm";
-import CanvaConnectPanel from "@/components/CanvaConnectPanel";
-import YouTubeConnectPanel from "@/components/YouTubeConnectPanel";
 import { KIND_LABELS } from "@/lib/constants";
 import type { GenerationKind, StyleExample, StyleProfile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ canva?: string; youtube?: string }>;
-}) {
-  const { canva: canvaStatusParam, youtube: youtubeStatusParam } = await searchParams;
+export default async function SettingsPage() {
   const supabase = await createClient();
   const channelId = process.env.NEXT_PUBLIC_DEFAULT_CHANNEL_ID!;
 
@@ -29,22 +22,6 @@ export default async function SettingsPage({
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const { data: canvaToken } = await supabase
-    .from("oauth_tokens")
-    .select("provider")
-    .eq("provider", "canva")
-    .maybeSingle();
-
-  const { data: ytToken } = await supabase
-    .from("oauth_tokens")
-    .select("provider")
-    .eq("provider", "youtube")
-    .maybeSingle();
-
-  const { count: templateCount } = await supabase
-    .from("cover_templates")
-    .select("*", { count: "exact", head: true });
-
   const grouped: Record<string, StyleExample[]> = {};
   for (const ex of (examples ?? []) as StyleExample[]) {
     (grouped[ex.kind] ??= []).push(ex);
@@ -53,14 +30,6 @@ export default async function SettingsPage({
   return (
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       <div>
-        <div className="flex flex-col gap-4 mb-6">
-          <YouTubeConnectPanel connected={!!ytToken} statusParam={youtubeStatusParam} />
-          <CanvaConnectPanel
-            connected={!!canvaToken}
-            statusParam={canvaStatusParam}
-            templateCount={templateCount ?? 0}
-          />
-        </div>
         <h1 className="text-2xl font-extrabold mb-2 text-on-navy">הנחיות סגנון</h1>
         <p className="text-muted-on-navy text-sm mb-5">
           כאן את מלמדת את המערכת באיזו שפה ובאיזה וויזואל להפיק את התוכן. ההנחיות

@@ -1,8 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
-import SignOutButton from "@/components/SignOutButton";
+import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
+import SettingsDrawer from "@/components/SettingsDrawer";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
+  const [{ data: ytToken }, { data: canvaToken }, { count: templateCount }] = await Promise.all([
+    supabase.from("oauth_tokens").select("provider").eq("provider", "youtube").maybeSingle(),
+    supabase.from("oauth_tokens").select("provider").eq("provider", "canva").maybeSingle(),
+    supabase.from("cover_templates").select("*", { count: "exact", head: true }),
+  ]);
+
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 bg-panel-dark border-b border-border-navy">
@@ -33,7 +42,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/settings" className="hover:text-accent transition">
               הנחיות סגנון
             </Link>
-            <SignOutButton />
+            <Suspense fallback={<span className="w-9 h-9" />}>
+              <SettingsDrawer
+                ytConnected={!!ytToken}
+                canvaConnected={!!canvaToken}
+                templateCount={templateCount ?? 0}
+              />
+            </Suspense>
           </nav>
         </div>
       </header>

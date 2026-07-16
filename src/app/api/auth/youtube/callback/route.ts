@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   cookieStore.delete("yt_oauth_state");
 
   if (!code || !state || state !== expectedState) {
-    return NextResponse.redirect(new URL("/settings?youtube=error", req.url));
+    return NextResponse.redirect(new URL("/?connected=youtube_error", req.url));
   }
 
   const supabase = await createClient();
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     // client+user — if the app was connected before and the user revoked
     // access from Google's side instead of ours, this can come back empty.
     if (!tokens.refresh_token) {
-      return NextResponse.redirect(new URL("/settings?youtube=no_refresh_token", req.url));
+      return NextResponse.redirect(new URL("/?connected=no_refresh_token", req.url));
     }
     const { error } = await supabase.from("oauth_tokens").upsert(
       {
@@ -42,10 +42,10 @@ export async function GET(req: Request) {
       { onConflict: "provider" },
     );
     if (error) {
-      return NextResponse.redirect(new URL("/settings?youtube=error", req.url));
+      return NextResponse.redirect(new URL("/?connected=youtube_error", req.url));
     }
-    return NextResponse.redirect(new URL("/settings?youtube=connected", req.url));
+    return NextResponse.redirect(new URL("/?connected=youtube", req.url));
   } catch {
-    return NextResponse.redirect(new URL("/settings?youtube=error", req.url));
+    return NextResponse.redirect(new URL("/?connected=youtube_error", req.url));
   }
 }

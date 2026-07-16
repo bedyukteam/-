@@ -22,7 +22,7 @@ export async function GET(req: Request) {
       stateMatches: state === expectedState,
       host: url.host,
     });
-    return NextResponse.redirect(new URL("/settings?canva=error", req.url));
+    return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
   }
 
   const supabase = await createClient();
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     const tokens = await exchangeCode(code, verifier);
     if (!tokens.refresh_token) {
       console.error("[canva-callback] token response missing refresh_token");
-      return NextResponse.redirect(new URL("/settings?canva=error", req.url));
+      return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
     }
     const { error: upsertErr } = await supabase.from("oauth_tokens").upsert(
       {
@@ -49,11 +49,11 @@ export async function GET(req: Request) {
     );
     if (upsertErr) {
       console.error("[canva-callback] oauth_tokens upsert failed:", upsertErr.message);
-      return NextResponse.redirect(new URL("/settings?canva=error", req.url));
+      return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
     }
-    return NextResponse.redirect(new URL("/settings?canva=connected", req.url));
+    return NextResponse.redirect(new URL("/?connected=canva", req.url));
   } catch (e) {
     console.error("[canva-callback] token exchange failed:", e instanceof Error ? e.message : e);
-    return NextResponse.redirect(new URL("/settings?canva=error", req.url));
+    return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
   }
 }
