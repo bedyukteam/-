@@ -77,6 +77,10 @@ export default function PublishPanel({
             className="text-accent underline"
           >
             פתיחה ביוטיוב
+          </a>{" "}
+          ·{" "}
+          <a href={`/analytics/video/${youtubeVideoId}`} className="text-accent underline">
+            📊 אנליטיקס
           </a>
         </div>
       )}
