@@ -145,7 +145,7 @@ export default function SettingsDrawer({
       <button
         onClick={() => setOpen(true)}
         title="הגדרות וחשבון"
-        className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/30 hover:border-accent transition grid place-items-center bg-white/10 text-white text-sm font-bold shrink-0"
+        className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/30 hover:border-primary transition grid place-items-center bg-white/10 text-white text-sm font-bold shrink-0"
       >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -167,7 +167,7 @@ export default function SettingsDrawer({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="font-extrabold">הגדרות וחשבון</h2>
-          <button onClick={() => setOpen(false)} className="text-muted hover:text-foreground text-lg leading-none">
+          <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">
             ✕
           </button>
         </div>
@@ -177,7 +177,7 @@ export default function SettingsDrawer({
           <section className="border border-border rounded-2xl p-4 flex flex-col gap-3">
             <h3 className="font-bold text-sm">פרופיל</h3>
             <div className="flex items-center gap-3">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 grid place-items-center text-xl font-bold text-muted shrink-0">
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 grid place-items-center text-xl font-bold text-muted-foreground shrink-0">
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -185,7 +185,7 @@ export default function SettingsDrawer({
                   initial
                 )}
               </div>
-              <label className="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-accent transition cursor-pointer">
+              <label className="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-primary transition cursor-pointer">
                 {uploadingAvatar ? "מעלה…" : "🖼 החלפת תמונה"}
                 <input
                   type="file"
@@ -197,27 +197,27 @@ export default function SettingsDrawer({
               </label>
             </div>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs text-muted">שם תצוגה</span>
+              <span className="text-xs text-muted-foreground">שם תצוגה</span>
               <div className="flex gap-2">
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="איך לקרוא לך?"
-                  className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent"
+                  className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
                 />
                 <button
                   onClick={saveName}
                   disabled={savingName}
-                  className="text-xs bg-accent text-accent-foreground rounded-lg px-3 font-semibold disabled:opacity-50"
+                  className="text-xs bg-brand text-brand-foreground rounded-lg px-3 font-semibold disabled:opacity-50"
                 >
                   {savingName ? "שומר…" : "שמור"}
                 </button>
               </div>
             </label>
-            <p className="text-xs text-muted" dir="ltr">
+            <p className="text-xs text-muted-foreground" dir="ltr">
               {email}
             </p>
-            {profileMsg && <p className="text-xs text-muted">{profileMsg}</p>}
+            {profileMsg && <p className="text-xs text-muted-foreground">{profileMsg}</p>}
           </section>
 
           {/* חיבורים */}
@@ -235,33 +235,33 @@ export default function SettingsDrawer({
               value={pw1}
               onChange={(e) => setPw1(e.target.value)}
               placeholder="סיסמה חדשה (8 תווים לפחות)"
-              className="border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent"
+              className="border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
             />
             <input
               type="password"
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               placeholder="אימות סיסמה חדשה"
-              className="border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent"
+              className="border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
             />
             <button
               onClick={changePassword}
               disabled={changingPw || !pw1}
-              className="self-start text-xs bg-accent text-accent-foreground rounded-lg px-3 py-1.5 font-semibold disabled:opacity-50"
+              className="self-start text-xs bg-brand text-brand-foreground rounded-lg px-3 py-1.5 font-semibold disabled:opacity-50"
             >
               {changingPw ? "מעדכן…" : "עדכן סיסמה"}
             </button>
-            {pwMsg && <p className={`text-xs ${pwMsg.ok ? "text-success" : "text-danger"}`}>{pwMsg.text}</p>}
+            {pwMsg && <p className={`text-xs ${pwMsg.ok ? "text-success" : "text-destructive"}`}>{pwMsg.text}</p>}
           </section>
 
-          <p className="text-xs text-muted text-center">עוד הגדרות יתווספו כאן בהמשך ✨</p>
+          <p className="text-xs text-muted-foreground text-center">עוד הגדרות יתווספו כאן בהמשך ✨</p>
         </div>
 
         {/* התנתקות */}
         <div className="p-4 border-t border-border">
           <button
             onClick={signOut}
-            className="w-full border border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-danger hover:bg-red-50 transition"
+            className="w-full border border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-destructive hover:bg-red-50 transition"
           >
             התנתקות מהמערכת
           </button>

@@ -30,8 +30,8 @@ export default async function SettingsPage() {
   return (
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       <div>
-        <h1 className="text-2xl font-extrabold mb-2 text-on-navy">הנחיות סגנון</h1>
-        <p className="text-muted-on-navy text-sm mb-5">
+        <h1 className="text-2xl font-extrabold mb-2 text-foreground">הנחיות סגנון</h1>
+        <p className="text-muted-foreground text-sm mb-5">
           כאן את מלמדת את המערכת באיזו שפה ובאיזה וויזואל להפיק את התוכן. ההנחיות
           נכנסות לכל פרק חדש, יחד עם הדוגמאות שאישרת — וכך הסגנון משתפר מפרק לפרק.
         </p>
@@ -41,25 +41,25 @@ export default async function SettingsPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-bold mb-2 text-on-navy">ספריית דוגמאות מאושרות</h2>
-        <p className="text-muted-on-navy text-sm mb-4">
+        <h2 className="text-lg font-bold mb-2 text-foreground">ספריית דוגמאות מאושרות</h2>
+        <p className="text-muted-foreground text-sm mb-4">
           כל פריט שאת מסמנת ככוכב ★ בפרקים נשמר כאן ומשמש את המערכת כדוגמה.
         </p>
         {Object.keys(grouped).length === 0 ? (
-          <p className="text-muted text-sm bg-surface border border-border rounded-2xl p-6">
+          <p className="text-muted-foreground text-sm bg-card border border-border rounded-2xl p-6">
             עדיין אין דוגמאות. סמני פריטים ★ בפרקים כדי לבנות את הזיכרון.
           </p>
         ) : (
           <div className="flex flex-col gap-4">
             {Object.entries(grouped).map(([kind, items]) => (
-              <div key={kind} className="bg-surface border border-border rounded-2xl p-4">
+              <div key={kind} className="bg-card border border-border rounded-2xl p-4">
                 <h3 className="font-semibold text-sm mb-2">
                   {KIND_LABELS[kind as GenerationKind] ?? kind}{" "}
-                  <span className="text-muted">({items.length})</span>
+                  <span className="text-muted-foreground">({items.length})</span>
                 </h3>
                 <ul className="flex flex-col gap-1.5">
                   {items.slice(0, 8).map((ex) => (
-                    <li key={ex.id} className="text-sm text-muted line-clamp-2">
+                    <li key={ex.id} className="text-sm text-muted-foreground line-clamp-2">
                       • {(ex.content as { text?: string }).text ?? JSON.stringify(ex.content)}
                     </li>
                   ))}

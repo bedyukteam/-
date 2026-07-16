@@ -26,10 +26,10 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-5">
+    <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-5">
       <label className="flex flex-col gap-1.5 text-sm">
         <span className="font-semibold">הנחיות שפה</span>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted-foreground">
           טון, אוצר מילים, אורך, פנייה (את/אתה), מה כן ומה אסור. למשל: &quot;שפה חמה
           ואנושית, גוף שני נקבה, בלי קלישאות שיווקיות, משפטים קצרים.&quot;
         </span>
@@ -37,13 +37,13 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
           rows={7}
-          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm leading-relaxed"
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm leading-relaxed"
         />
       </label>
 
       <label className="flex flex-col gap-1.5 text-sm">
         <span className="font-semibold">קישור לקאברים ב-Canva</span>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted-foreground">
           הקישור לעיצוב/תיקיית הקאברים שלך ב-Canva. מופיע ככפתור &quot;פתח את הקאברים&quot; בכל פרק.
         </span>
         <input
@@ -51,7 +51,7 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
           onChange={(e) => setCanva(e.target.value)}
           dir="ltr"
           placeholder="https://www.canva.com/design/…"
-          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm"
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm"
         />
       </label>
 
@@ -59,7 +59,7 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
         <button
           onClick={save}
           disabled={saving}
-          className="bg-accent text-accent-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+          className="bg-brand text-brand-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
         >
           {saving ? "שומר…" : "שמירה"}
         </button>

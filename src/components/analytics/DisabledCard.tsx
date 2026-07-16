@@ -10,15 +10,15 @@ export default function DisabledCard({
 }) {
   return (
     <div className="border border-dashed border-border rounded-2xl p-5 flex flex-col gap-1.5 bg-slate-50/50">
-      <h3 className="font-semibold text-sm text-muted">🔒 {title}</h3>
-      <p className="text-xs text-muted">
+      <h3 className="font-semibold text-sm text-muted-foreground">🔒 {title}</h3>
+      <p className="text-xs text-muted-foreground">
         הנתון הזה לא נחשף ב-API של יוטיוב — זמין רק בתוך YouTube Studio.
       </p>
       <a
         href={studioUrl}
         target="_blank"
         rel="noreferrer"
-        className="text-xs text-accent hover:underline self-start"
+        className="text-xs text-primary hover:underline self-start"
       >
         פתיחה ב-Studio ←
       </a>

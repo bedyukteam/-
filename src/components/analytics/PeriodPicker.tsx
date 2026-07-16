@@ -68,10 +68,10 @@ export default function PeriodPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-xs border border-border rounded-lg px-3 py-2 hover:border-accent transition flex items-center gap-2"
+        className="text-xs border border-border rounded-lg px-3 py-2 hover:border-primary transition flex items-center gap-2"
       >
         <span className="font-medium">{value.label}</span>
-        <span className="text-muted">▾</span>
+        <span className="text-muted-foreground">▾</span>
       </button>
       {open && (
         <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-border rounded-xl shadow-lg p-1.5 w-56">
@@ -111,7 +111,7 @@ export default function PeriodPicker({
                       setOpen(false);
                     }
                   }}
-                  className="bg-accent text-accent-foreground rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  className="bg-brand text-brand-foreground rounded-lg px-3 py-1.5 text-xs font-semibold"
                 >
                   החל
                 </button>

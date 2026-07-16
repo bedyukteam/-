@@ -187,19 +187,19 @@ export default function UploadForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-4"
+      className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-4"
     >
       <h2 className="font-bold text-lg">פרק חדש</h2>
 
       {/* input mode */}
-      <div className="flex gap-1 bg-surface-2 rounded-lg p-1">
+      <div className="flex gap-1 bg-muted rounded-lg p-1">
         {MODES.map((m) => (
           <button
             key={m.key}
             type="button"
             onClick={() => setMode(m.key)}
             className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
-              mode === m.key ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground"
+              mode === m.key ? "bg-brand text-brand-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {m.label}
@@ -216,8 +216,8 @@ export default function UploadForm() {
             onClick={() => setType(t)}
             className={`flex-1 rounded-lg py-2 text-sm font-medium border transition ${
               type === t
-                ? "bg-accent-soft border-accent text-foreground font-semibold"
-                : "border-border text-muted hover:border-accent"
+                ? "bg-brand-soft border-primary text-foreground font-semibold"
+                : "border-border text-muted-foreground hover:border-primary"
             }`}
           >
             {t === "episode" ? "פרק (פודקאסט)" : "שורט"}
@@ -231,7 +231,7 @@ export default function UploadForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="למשל: פרק 12 — ראיון עם…"
-          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent"
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring"
         />
       </label>
 
@@ -242,9 +242,9 @@ export default function UploadForm() {
             ref={fileRef}
             type="file"
             accept="video/*"
-            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
+            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:text-primary file:px-3 file:py-2 file:font-medium"
           />
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             הקובץ עולה לאחסון ענן, המערכת מחלצת ממנו אודיו ותמלול — ובסוף מפרסמת אותו ליוטיוב.
           </span>
         </label>
@@ -258,9 +258,9 @@ export default function UploadForm() {
             onChange={(e) => setTranscript(e.target.value)}
             rows={8}
             placeholder="הדביקי כאן את התמלול מ-Veed…"
-            className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm leading-relaxed"
+            className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm leading-relaxed"
           />
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             הדרך המהירה: ב-Veed מסמנים את התמלול, מעתיקים (Cmd+C) ומדביקים כאן.
           </span>
         </label>
@@ -273,9 +273,9 @@ export default function UploadForm() {
             ref={fileRef}
             type="file"
             accept="audio/*,video/*"
-            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent file:px-3 file:py-2 file:font-medium"
+            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:text-primary file:px-3 file:py-2 file:font-medium"
           />
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             קבצים מעל ~45MB נדחסים אוטומטית בדפדפן לפני ההעלאה.
           </span>
         </label>
@@ -284,9 +284,9 @@ export default function UploadForm() {
       {progress !== null && (
         <div className="flex flex-col gap-1">
           <div className="h-2 bg-border rounded-full overflow-hidden">
-            <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-brand transition-all" style={{ width: `${progress}%` }} />
           </div>
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             {stage === "compress"
               ? progress === 0
                 ? "טוען מנוע דחיסה…"
@@ -296,12 +296,12 @@ export default function UploadForm() {
         </div>
       )}
 
-      {error && <p className="text-danger text-sm">{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
       <button
         type="submit"
         disabled={busy}
-        className="bg-accent text-accent-foreground rounded-lg py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+        className="bg-brand text-brand-foreground rounded-lg py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
       >
         {busy ? "מעבד…" : "צור חבילת תוכן"}
       </button>

@@ -31,9 +31,9 @@ export default async function VideoAnalyticsPage({
 
   if (!meta) {
     return (
-      <div className="bg-surface border border-border rounded-2xl p-6 text-sm">
-        <p className="text-danger">לא ניתן לטעון את פרטי הסרטון{metaError ? ` — ${metaError}` : ""}.</p>
-        <a href="/analytics" className="text-accent hover:underline text-xs">← חזרה לאנליטיקס</a>
+      <div className="bg-card border border-border rounded-2xl p-6 text-sm">
+        <p className="text-destructive">לא ניתן לטעון את פרטי הסרטון{metaError ? ` — ${metaError}` : ""}.</p>
+        <a href="/analytics" className="text-primary hover:underline text-xs">← חזרה לאנליטיקס</a>
       </div>
     );
   }

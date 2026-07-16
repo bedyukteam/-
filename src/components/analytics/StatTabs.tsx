@@ -34,9 +34,9 @@ export default function StatTabs({
               isActive ? "bg-white" : "bg-slate-50"
             } ${clickable ? "hover:bg-white cursor-pointer" : "cursor-default"}`}
           >
-            <span className="text-xs text-muted">{s.label}</span>
+            <span className="text-xs text-muted-foreground">{s.label}</span>
             <span className="text-2xl font-extrabold">{s.value}</span>
-            {s.sub && <span className="text-[11px] text-muted">{s.sub}</span>}
+            {s.sub && <span className="text-[11px] text-muted-foreground">{s.sub}</span>}
           </button>
         );
       })}

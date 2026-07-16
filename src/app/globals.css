@@ -1,65 +1,151 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Brand palette — "בדיוק" / יונה משה-דוד */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system — "בדיוק" / יונה משה-דוד
+ * Professional light UI over the brand palette:
+ *   navy #324158 = primary (buttons, links, focus) + sidebar chrome
+ *   yellow #F2DA06 = brand CTA (bg-brand / Button variant "cta") — main actions only
+ */
 :root {
-  --background: #324158;        /* navy — page background (dominant) */
-  --panel-dark: #161d2e;        /* dark navy — header / high-contrast panels */
-  --surface: #ffffff;           /* primary light card */
-  --surface-2: #f4f6fa;         /* secondary light card */
-  --foreground: #161d2e;        /* text on light cards (default) */
-  --on-navy: #ffffff;           /* text on navy backgrounds */
-  --muted: #5b6779;             /* secondary text on light cards */
-  --muted-on-navy: #aeb8c9;     /* secondary text on navy */
-  --border: #e4e8f0;            /* light-card borders */
-  --border-navy: rgba(255, 255, 255, 0.14);
-  --accent: #f2da06;            /* brand yellow — CTAs / highlights (sparingly) */
-  --accent-foreground: #161d2e; /* dark navy text on yellow */
-  --accent-soft: rgba(242, 218, 6, 0.16);
-  --success: #3e9468;           /* checkmarks only */
-  --danger: #c0392b;
+  /* shadcn semantic tokens, brand-mapped (light) */
+  --background: #f5f6f9;
+  --foreground: #1c2534;
+  --card: #ffffff;
+  --card-foreground: #1c2534;
+  --popover: #ffffff;
+  --popover-foreground: #1c2534;
+  --primary: #324158;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f6;
+  --secondary-foreground: #324158;
+  --muted: #eef1f6;
+  --muted-foreground: #5b6779;
+  --accent: #f8f2cf; /* soft brand-yellow tint — hover/selected states */
+  --accent-foreground: #1c2534;
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+  --border: #e4e8f0;
+  --input: #dfe4ec;
+  --ring: #324158;
+  --radius: 0.75rem;
+  --chart-1: #324158;
+  --chart-2: #f2da06;
+  --chart-3: #64748b;
+  --chart-4: #94a3b8;
+  --chart-5: #cbd5e1;
+
+  /* brand CTA (full-strength yellow) */
+  --brand: #f2da06;
+  --brand-foreground: #161d2e;
+  --brand-soft: rgba(242, 218, 6, 0.16);
+
+  /* status */
+  --success: #3e9468;
   --warning: #b45309;
-  --ring-gold: #8c800d;         /* decorative concentric rings only, low opacity */
+
+  /* dark chrome (sidebar / header) */
+  --panel-dark: #161d2e;
+  --navy: #324158;
+  --on-navy: #ffffff;
+  --muted-on-navy: #aeb8c9;
+  --border-navy: rgba(255, 255, 255, 0.14);
+  --ring-gold: #8c800d;
+
+  /* sidebar tokens (shadcn) — dark navy chrome */
+  --sidebar: #161d2e;
+  --sidebar-foreground: #e6eaf1;
+  --sidebar-primary: #f2da06;
+  --sidebar-primary-foreground: #161d2e;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.14);
+  --sidebar-ring: #f2da06;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-panel-dark: var(--panel-dark);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
   --color-foreground: var(--foreground);
-  --color-on-navy: var(--on-navy);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
-  --color-muted-on-navy: var(--muted-on-navy);
-  --color-border: var(--border);
-  --color-border-navy: var(--border-navy);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-accent-soft: var(--accent-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
   --color-success: var(--success);
-  --color-danger: var(--danger);
   --color-warning: var(--warning);
+
+  --color-panel-dark: var(--panel-dark);
+  --color-navy: var(--navy);
+  --color-on-navy: var(--on-navy);
+  --color-muted-on-navy: var(--muted-on-navy);
+  --color-border-navy: var(--border-navy);
   --color-ring-gold: var(--ring-gold);
-  --font-sans: var(--font-heebo), system-ui, sans-serif;
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: "Heebo", "Heebo Fallback", system-ui, sans-serif;
+  --font-heading: "Heebo", "Heebo Fallback", system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-card: 0 1px 2px rgba(22, 29, 46, 0.05), 0 1px 3px rgba(22, 29, 46, 0.06);
+  --shadow-raised: 0 4px 12px rgba(22, 29, 46, 0.1);
 }
 
-html {
-  background: var(--background);
-  color: var(--foreground);
-}
-
-body {
-  font-family: var(--font-heebo), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
-textarea,
-input {
-  font-family: inherit;
-}
-
-::selection {
-  background: var(--accent);
-  color: var(--accent-foreground);
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-heebo), "Heebo", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  textarea,
+  input {
+    font-family: inherit;
+  }
+  ::selection {
+    background: var(--brand);
+    color: var(--brand-foreground);
+  }
 }
 
 /* Concentric-ring decorative motif (olive-gold, very low opacity).

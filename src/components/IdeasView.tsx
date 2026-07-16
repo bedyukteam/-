@@ -65,7 +65,7 @@ export default function IdeasView({
 
   if (episodesWithContent.length === 0) {
     return (
-      <p className="text-muted text-sm bg-surface border border-border rounded-2xl p-6">
+      <p className="text-muted-foreground text-sm bg-card border border-border rounded-2xl p-6">
         עדיין אין רעיונות לתוכן. העלי פרק — הציטוטים, הקרוסלות והרעיונות שלו יופיעו כאן.
       </p>
     );
@@ -91,13 +91,13 @@ export default function IdeasView({
         return (
           <section key={ep.id} className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <h2 className="font-bold text-on-navy">
+              <h2 className="font-bold text-foreground">
                 {ep.type === "short" ? "🎬" : "🎙"} {ep.title || "ללא כותרת"}
               </h2>
-              <span className="text-xs text-muted-on-navy">
+              <span className="text-xs text-muted-foreground">
                 {new Date(ep.created_at).toLocaleDateString("he-IL")}
               </span>
-              <a href={`/episodes/${ep.id}`} className="text-xs text-accent hover:underline">
+              <a href={`/episodes/${ep.id}`} className="text-xs text-primary hover:underline">
                 לדף הפרק ←
               </a>
             </div>
@@ -106,7 +106,7 @@ export default function IdeasView({
               const items = epGens.filter((g) => g.kind === kind);
               if (items.length === 0) return null;
               return (
-                <div key={kind} className="bg-surface border border-border rounded-2xl p-5">
+                <div key={kind} className="bg-card border border-border rounded-2xl p-5">
                   <h3 className="font-bold mb-3">{KIND_LABELS[kind]}</h3>
                   <div className="flex flex-col gap-2">
                     {items.map((g) =>
@@ -147,8 +147,8 @@ function FilterChip({
       onClick={onClick}
       className={`text-xs rounded-full px-3 py-1.5 border transition max-w-56 truncate ${
         active
-          ? "bg-accent text-accent-foreground border-accent font-semibold"
-          : "border-border-navy text-on-navy hover:border-accent"
+          ? "bg-brand text-brand-foreground border-primary font-semibold"
+          : "border-border bg-card text-foreground hover:border-primary"
       }`}
     >
       {children}

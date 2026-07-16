@@ -62,7 +62,7 @@ export function AreaChart({
           );
         })}
       </svg>
-      <div className="flex justify-between text-[11px] text-muted mt-1">
+      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
         <span>{xFirst ?? ""}</span>
         <span>מקס׳: {fmtNum(Math.round(max))}</span>
         <span>{xLast ?? ""}</span>
@@ -90,7 +90,7 @@ export function BarList({
             <div className="min-w-0">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="truncate">{it.label}</span>
-                {it.sub && <span className="text-xs text-muted shrink-0">{it.sub}</span>}
+                {it.sub && <span className="text-xs text-muted-foreground shrink-0">{it.sub}</span>}
               </div>
               <div className="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden" dir="ltr">
                 <div
@@ -99,7 +99,7 @@ export function BarList({
                 />
               </div>
             </div>
-            <span className="text-xs text-muted w-14 text-left" dir="ltr">
+            <span className="text-xs text-muted-foreground w-14 text-left" dir="ltr">
               {pct.toFixed(1)}% · {valueFmt(it.value)}
             </span>
           </div>
@@ -152,7 +152,7 @@ export function RetentionChart({
   points: { x: number; y: number }[]; // x: 0..1 elapsed ratio, y: watch ratio (can exceed 1)
   durationSec?: number;
 }) {
-  if (points.length < 2) return <p className="text-xs text-muted">אין עדיין נתוני שימור לסרטון הזה.</p>;
+  if (points.length < 2) return <p className="text-xs text-muted-foreground">אין עדיין נתוני שימור לסרטון הזה.</p>;
   const W = 600;
   const H = 150;
   const maxY = Math.max(1.2, ...points.map((p) => p.y));
@@ -178,7 +178,7 @@ export function RetentionChart({
         <polygon points={`0,${H - 8} ${line} ${W},${H - 8}`} fill={CHART.primary} opacity="0.1" />
         <polyline points={line} fill="none" stroke={CHART.primary} strokeWidth="2" vectorEffect="non-scaling-stroke" />
       </svg>
-      <div className="flex justify-between text-[11px] text-muted mt-1">
+      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
         <span>{fmtT(0)}</span>
         <span>{fmtT(0.5)}</span>
         <span>{fmtT(1)}</span>

@@ -29,7 +29,7 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-4"
+      className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-4"
     >
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">אימייל</span>
@@ -39,7 +39,7 @@ export default function LoginForm() {
           dir="ltr"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent"
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -50,14 +50,14 @@ export default function LoginForm() {
           dir="ltr"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent"
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring"
         />
       </label>
-      {error && <p className="text-danger text-sm">{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
       <button
         type="submit"
         disabled={loading}
-        className="bg-accent text-accent-foreground rounded-lg py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+        className="bg-brand text-brand-foreground rounded-lg py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
       >
         {loading ? "מתחברת…" : "כניסה"}
       </button>

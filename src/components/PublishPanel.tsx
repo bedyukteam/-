@@ -49,7 +49,7 @@ export default function PublishPanel({
 
   if (!hasVideo) {
     return (
-      <div className="bg-surface border border-border rounded-2xl p-6 text-sm text-muted">
+      <div className="bg-card border border-border rounded-2xl p-6 text-sm text-muted-foreground">
         פרסום ליוטיוב זמין רק לפרקים שהועלו כווידאו מלא.
       </div>
     );
@@ -59,10 +59,10 @@ export default function PublishPanel({
   const isLive = youtubeStatus === "published" || youtubeStatus === "scheduled";
 
   return (
-    <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
+    <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-4">
       <h3 className="font-bold text-sm">פרסום ליוטיוב</h3>
 
-      {locked && <p className="text-xs text-muted">נעול עד שכל האישורים הנדרשים למעלה יושלמו.</p>}
+      {locked && <p className="text-xs text-muted-foreground">נעול עד שכל האישורים הנדרשים למעלה יושלמו.</p>}
 
       {!locked && isLive && youtubeVideoId && (
         <div className="text-sm">
@@ -74,18 +74,18 @@ export default function PublishPanel({
             href={`https://youtube.com/watch?v=${youtubeVideoId}`}
             target="_blank"
             rel="noreferrer"
-            className="text-accent underline"
+            className="text-primary underline"
           >
             פתיחה ביוטיוב
           </a>{" "}
           ·{" "}
-          <a href={`/analytics/video/${youtubeVideoId}`} className="text-accent underline">
+          <a href={`/analytics/video/${youtubeVideoId}`} className="text-primary underline">
             📊 אנליטיקס
           </a>
         </div>
       )}
 
-      {!locked && youtubeStatus === "error" && <p className="text-xs text-danger">שגיאה: {youtubeError}</p>}
+      {!locked && youtubeStatus === "error" && <p className="text-xs text-destructive">שגיאה: {youtubeError}</p>}
 
       {!locked && !isLive && (
         <>
@@ -96,13 +96,13 @@ export default function PublishPanel({
               value={publishAt}
               onChange={(e) => setPublishAt(e.target.value)}
               dir="ltr"
-              className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm w-fit"
+              className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm w-fit"
             />
           </label>
 
           {youtubeStatus === "uploading" && (
             <div className="w-full bg-border rounded-full h-2">
-              <div className="bg-accent h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
+              <div className="bg-brand h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           )}
 
@@ -110,7 +110,7 @@ export default function PublishPanel({
             <button
               onClick={() => publish(publishAt ? new Date(publishAt).toISOString() : null)}
               disabled={busy}
-              className="self-start bg-accent text-accent-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+              className="self-start bg-brand text-brand-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
             >
               {busy ? `מעלה… ${progress}%` : "המשך העלאה"}
             </button>
@@ -119,7 +119,7 @@ export default function PublishPanel({
               <button
                 onClick={() => publish(null)}
                 disabled={busy}
-                className="bg-accent text-accent-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+                className="bg-brand text-brand-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
               >
                 {busy ? `מעלה… ${progress}%` : "פרסם"}
               </button>
@@ -127,11 +127,11 @@ export default function PublishPanel({
                 onClick={() => publish(new Date(publishAt).toISOString())}
                 disabled={busy || !publishAt}
                 title={publishAt ? "" : "בחרי תאריך ושעה כדי לתזמן"}
-                className="border border-border rounded-lg px-5 py-2.5 font-semibold hover:border-accent disabled:opacity-50 transition"
+                className="border border-border rounded-lg px-5 py-2.5 font-semibold hover:border-primary disabled:opacity-50 transition"
               >
                 תזמן
               </button>
-              <span className="text-xs text-muted">פרסם = עולה מיד בגלוי לכולם · תזמן = לפי התאריך שנבחר</span>
+              <span className="text-xs text-muted-foreground">פרסם = עולה מיד בגלוי לכולם · תזמן = לפי התאריך שנבחר</span>
             </div>
           )}
         </>

@@ -51,11 +51,11 @@ export default function CanvaConnectPanel({
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-3">
+    <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h3 className="font-semibold text-sm mb-1">חיבור וסנכרון תבניות Canva</h3>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             {connected
               ? `מחובר — ${templateCount} תבניות קאבר במערכת כרגע.`
               : "חברי את Canva כדי לסנכרן תבניות קאבר אוטומטית."}
@@ -66,7 +66,7 @@ export default function CanvaConnectPanel({
             <span className="text-success text-sm font-medium">✓ מחובר</span>
             <a
               href="/api/auth/canva/start"
-              className="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-accent transition"
+              className="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-primary transition"
               title="מריץ שוב את מסך ההרשאות של Canva"
             >
               🔄 חבר מחדש
@@ -74,7 +74,7 @@ export default function CanvaConnectPanel({
             <button
               onClick={disconnect}
               disabled={disconnecting}
-              className="text-xs text-muted hover:text-danger disabled:opacity-50 transition"
+              className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 transition"
             >
               נתק
             </button>
@@ -82,7 +82,7 @@ export default function CanvaConnectPanel({
         ) : (
           <a
             href="/api/auth/canva/start"
-            className="shrink-0 bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90"
+            className="shrink-0 bg-brand text-brand-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90"
           >
             חבר Canva
           </a>
@@ -93,14 +93,14 @@ export default function CanvaConnectPanel({
           type="button"
           onClick={sync}
           disabled={syncing}
-          className="self-start border border-border rounded-lg px-4 py-2 text-sm hover:border-accent disabled:opacity-50"
+          className="self-start border border-border rounded-lg px-4 py-2 text-sm hover:border-primary disabled:opacity-50"
         >
           {syncing ? "מסנכרנת…" : "🔄 סנכרן תבניות"}
         </button>
       )}
-      {syncResult && <p className="text-xs text-muted">{syncResult}</p>}
+      {syncResult && <p className="text-xs text-muted-foreground">{syncResult}</p>}
       {message && (
-        <p className={`text-xs ${message.tone === "success" ? "text-success" : "text-danger"}`}>
+        <p className={`text-xs ${message.tone === "success" ? "text-success" : "text-destructive"}`}>
           {message.text}
         </p>
       )}

@@ -10,8 +10,8 @@ import type { Episode } from "@/lib/types";
 const STATUS_STYLE: Record<string, string> = {
   ready: "bg-green-100 text-success",
   processing: "bg-amber-100 text-warning",
-  error: "bg-red-100 text-danger",
-  uploaded: "bg-slate-100 text-muted",
+  error: "bg-red-100 text-destructive",
+  uploaded: "bg-slate-100 text-muted-foreground",
 };
 
 export default function EpisodeRow({ ep }: { ep: Episode }) {
@@ -50,7 +50,7 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 bg-surface border border-border rounded-xl p-4">
+    <div className="flex items-center justify-between gap-2 bg-card border border-border rounded-xl p-4">
       {editing ? (
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <input
@@ -59,12 +59,12 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
             dir="rtl"
             autoFocus
             placeholder="כותרת עבודה"
-            className="flex-1 min-w-0 bg-surface-2 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent"
+            className="flex-1 min-w-0 bg-muted border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
           />
           <button
             onClick={saveTitle}
             disabled={busy}
-            className="text-sm bg-accent text-accent-foreground rounded-lg px-3 py-1.5 disabled:opacity-50"
+            className="text-sm bg-brand text-brand-foreground rounded-lg px-3 py-1.5 disabled:opacity-50"
           >
             שמור
           </button>
@@ -73,17 +73,17 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
               setTitle(ep.title ?? "");
               setEditing(false);
             }}
-            className="text-xs text-muted hover:text-foreground"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             ביטול
           </button>
         </div>
       ) : (
-        <Link href={`/episodes/${ep.id}`} className="flex flex-col flex-1 min-w-0 hover:text-accent">
+        <Link href={`/episodes/${ep.id}`} className="flex flex-col flex-1 min-w-0 hover:text-primary">
           <span className="font-medium truncate">
             {ep.title || ep.source_filename || "פרק ללא שם"}
           </span>
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             {ep.type === "short" ? "שורט" : "פרק"} ·{" "}
             {new Date(ep.created_at).toLocaleDateString("he-IL")}
           </span>
@@ -101,7 +101,7 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
             onClick={() => setEditing(true)}
             title="ערוך כותרת עבודה"
             aria-label="ערוך כותרת עבודה"
-            className="text-muted hover:text-accent text-sm"
+            className="text-muted-foreground hover:text-primary text-sm"
           >
             ✏️
           </button>
@@ -110,7 +110,7 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
             disabled={busy}
             title="מחק פרק"
             aria-label="מחק פרק"
-            className="text-muted hover:text-danger text-sm disabled:opacity-50"
+            className="text-muted-foreground hover:text-destructive text-sm disabled:opacity-50"
           >
             🗑
           </button>

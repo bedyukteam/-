@@ -17,7 +17,7 @@ export default function LoginPage() {
               className="h-28 w-auto"
             />
           </div>
-          <p className="text-muted-on-navy mt-4 text-sm">
+          <p className="text-muted-foreground mt-4 text-sm">
             אולפן התוכן — מעלים פרק, מקבלים חבילה מוכנה
           </p>
         </div>

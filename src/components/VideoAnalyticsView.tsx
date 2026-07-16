@@ -56,31 +56,31 @@ export default function VideoAnalyticsView({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`} alt="" className="w-28 h-16 object-cover rounded-xl shrink-0" />
         <div className="min-w-0 flex-1">
-          <a href="/analytics" className="text-xs text-muted-on-navy hover:text-accent">← ניתוח נתוני הערוץ</a>
-          <h1 className="text-lg font-extrabold text-on-navy line-clamp-2">{meta.title}</h1>
-          <p className="text-xs text-muted-on-navy">
+          <a href="/analytics" className="text-xs text-muted-foreground hover:text-primary">← ניתוח נתוני הערוץ</a>
+          <h1 className="text-lg font-extrabold text-foreground line-clamp-2">{meta.title}</h1>
+          <p className="text-xs text-muted-foreground">
             {fmtDuration(meta.durationSec)} · פורסם {fmtDateShort(meta.publishedAt)}
             {episode && (
               <>
                 {" · "}
-                <a href={`/episodes/${episode.id}`} className="text-accent hover:underline">לדף הפרק ←</a>
+                <a href={`/episodes/${episode.id}`} className="text-primary hover:underline">לדף הפרק ←</a>
               </>
             )}
           </p>
         </div>
-        <div className="bg-surface rounded-lg">
+        <div className="bg-card rounded-lg">
           <PeriodPicker value={period} onChange={setPeriod} publishedAt={meta.publishedAt} />
         </div>
       </div>
 
       {/* tabs */}
-      <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1 self-start">
+      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 self-start">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`text-sm rounded-lg px-4 py-1.5 transition ${
-              tab === t.key ? "bg-accent text-accent-foreground font-bold" : "text-muted hover:text-foreground"
+              tab === t.key ? "bg-brand text-brand-foreground font-bold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {t.label}
@@ -122,7 +122,7 @@ function OverviewTab({ videoId, meta, period }: { videoId: string; meta: VideoMe
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-3">
+      <section className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3">
         <h2 className="font-bold text-center">
           {vsTypical && vsTypical > 1
             ? `מעולה! מספר הצפיות גבוה פי ${vsTypical.toFixed(1)} מהביצועים האופייניים של הערוץ.`
@@ -137,22 +137,22 @@ function OverviewTab({ videoId, meta, period }: { videoId: string; meta: VideoMe
           xFirst="0"
           xLast={`${cum.length} ימים`}
         />
-        <p className="text-[11px] text-muted">
+        <p className="text-[11px] text-muted-foreground">
           ▬ הסרטון הזה · <span style={{ color: CHART.muted }}>◌ ביצועים אופייניים</span> (חציון מחושב של סרטונים
           דומים בערוץ — קירוב, לא נתון רשמי של יוטיוב)
         </p>
       </section>
 
-      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-3">
+      <section className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3">
         <h3 className="font-bold text-sm">רגעים משמעותיים של שימור קהל</h3>
         <div className="grid grid-cols-2 gap-4 max-w-xs">
           <div>
             <p className="text-2xl font-extrabold">{stayedPct.toFixed(1)}%</p>
-            <p className="text-xs text-muted">המשיכו לצפות (קירוב)</p>
+            <p className="text-xs text-muted-foreground">המשיכו לצפות (קירוב)</p>
           </div>
           <div>
             <p className="text-2xl font-extrabold">{fmtDuration(avgDur)}</p>
-            <p className="text-xs text-muted">משך צפייה ממוצע</p>
+            <p className="text-xs text-muted-foreground">משך צפייה ממוצע</p>
           </div>
         </div>
         <RetentionChart points={retention} durationSec={meta.durationSec} />
@@ -181,15 +181,15 @@ function ReachTab({ videoId, period }: { videoId: string; period: Period }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-3">
+      <section className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3">
         <StatTabs stats={[{ key: "views", label: "צפיות", value: fmtNum(views) }]} />
         <AreaChart series={[{ points: cumulative(daily), color: CHART.primary, fill: true }]} xFirst="0" xLast={`${daily.length} ימים`} />
       </section>
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
-        <section className="bg-surface border border-border rounded-2xl p-5">
+        <section className="bg-card border border-border rounded-2xl p-5">
           <h3 className="font-bold text-sm mb-1">איך הצופים מגיעים לסרטון הזה</h3>
-          <p className="text-xs text-muted mb-3">צפיות · {period.label}</p>
+          <p className="text-xs text-muted-foreground mb-3">צפיות · {period.label}</p>
           <div className="flex items-center gap-5">
             <Donut items={traffic.slice(0, 6)} />
             <div className="flex-1 min-w-0">
@@ -199,10 +199,10 @@ function ReachTab({ videoId, period }: { videoId: string; period: Period }) {
         </section>
 
         <div className="flex flex-col gap-4">
-          <section className="bg-surface border border-border rounded-2xl p-5">
+          <section className="bg-card border border-border rounded-2xl p-5">
             <h3 className="font-bold text-sm mb-1">מונחי חיפוש ב-YouTube</h3>
-            <p className="text-xs text-muted mb-3">צפיות · {period.label}</p>
-            {terms.length ? <BarList items={terms.slice(0, 8)} /> : <p className="text-xs text-muted">אין עדיין תנועה מחיפוש.</p>}
+            <p className="text-xs text-muted-foreground mb-3">צפיות · {period.label}</p>
+            {terms.length ? <BarList items={terms.slice(0, 8)} /> : <p className="text-xs text-muted-foreground">אין עדיין תנועה מחיפוש.</p>}
           </section>
           <DisabledCard title="התראות שנשלחו + חשיפות (Impressions/CTR)" studioUrl={studioVideoUrl(videoId)} />
         </div>
@@ -223,7 +223,7 @@ function EngagementTab({ videoId, meta, period }: { videoId: string; meta: Video
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-surface border border-border rounded-2xl p-5">
+      <section className="bg-card border border-border rounded-2xl p-5">
         <StatTabs
           stats={[
             { key: "engaged", label: "צפיות פעילות", value: fmtNum(Number(t[1] ?? 0)) },
@@ -237,12 +237,12 @@ function EngagementTab({ videoId, meta, period }: { videoId: string; meta: Video
       </section>
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
-        <section className="bg-surface border border-border rounded-2xl p-5">
+        <section className="bg-card border border-border rounded-2xl p-5">
           <h3 className="font-bold text-sm mb-3">שימור קהל</h3>
           <RetentionChart points={retention} durationSec={meta.durationSec} />
         </section>
         <div className="flex flex-col gap-4">
-          <section className="bg-surface border border-border rounded-2xl p-3">
+          <section className="bg-card border border-border rounded-2xl p-3">
             <div className="aspect-video rounded-xl overflow-hidden">
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${videoId}`}
@@ -351,12 +351,12 @@ function SpotifyCard({ episode }: { episode: EpisodeLink }) {
         onChange={(e) => e.target.files?.[0] && uploadCsv(e.target.files[0])}
         className="text-sm"
       />
-      {err && <p className="text-xs text-danger mt-1">{err}</p>}
+      {err && <p className="text-xs text-destructive mt-1">{err}</p>}
       {s && (
         <div className="grid grid-cols-3 gap-3 text-sm mt-3">
-          <div><p className="text-lg font-bold">{s.streams ?? "—"}</p><p className="text-xs text-muted">Streams</p></div>
-          <div><p className="text-lg font-bold">{s.listeners ?? "—"}</p><p className="text-xs text-muted">Listeners</p></div>
-          <div><p className="text-lg font-bold">{s.starts ?? "—"}</p><p className="text-xs text-muted">Starts</p></div>
+          <div><p className="text-lg font-bold">{s.streams ?? "—"}</p><p className="text-xs text-muted-foreground">Streams</p></div>
+          <div><p className="text-lg font-bold">{s.listeners ?? "—"}</p><p className="text-xs text-muted-foreground">Listeners</p></div>
+          <div><p className="text-lg font-bold">{s.starts ?? "—"}</p><p className="text-xs text-muted-foreground">Starts</p></div>
         </div>
       )}
     </Card>
@@ -367,22 +367,22 @@ function SpotifyCard({ episode }: { episode: EpisodeLink }) {
 
 function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
+    <section className="bg-card border border-border rounded-2xl p-5">
       <h3 className="font-bold text-sm mb-1">{title}</h3>
-      {sub && <p className="text-xs text-muted mb-3">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground mb-3">{sub}</p>}
       {children}
     </section>
   );
 }
 
 function Loading() {
-  return <div className="bg-surface border border-border rounded-2xl p-8 text-center text-sm text-muted">⏳ טוען נתונים מיוטיוב…</div>;
+  return <div className="bg-card border border-border rounded-2xl p-8 text-center text-sm text-muted-foreground">⏳ טוען נתונים מיוטיוב…</div>;
 }
 
 function ErrorBox({ msg }: { msg: string }) {
-  return <div className="bg-surface border border-border rounded-2xl p-6 text-sm text-danger">שגיאה בשליפת הנתונים: {msg}</div>;
+  return <div className="bg-card border border-border rounded-2xl p-6 text-sm text-destructive">שגיאה בשליפת הנתונים: {msg}</div>;
 }
 
 function Empty() {
-  return <p className="text-xs text-muted">אין מספיק נתונים לתקופה הזו.</p>;
+  return <p className="text-xs text-muted-foreground">אין מספיק נתונים לתקופה הזו.</p>;
 }

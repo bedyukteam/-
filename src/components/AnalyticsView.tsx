@@ -54,13 +54,13 @@ export default function AnalyticsView() {
     <div className="flex flex-col gap-5">
       {/* header: tabs + period + sync */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`text-sm rounded-lg px-4 py-1.5 transition ${
-                tab === t.key ? "bg-accent text-accent-foreground font-bold" : "text-muted hover:text-foreground"
+                tab === t.key ? "bg-brand text-brand-foreground font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}
@@ -68,20 +68,20 @@ export default function AnalyticsView() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <div className="bg-surface rounded-lg">
+          <div className="bg-card rounded-lg">
             <PeriodPicker value={period} onChange={setPeriod} />
           </div>
           <button
             onClick={syncFromYouTube}
             disabled={syncing}
             title="מייבא למערכת סרטונים שכבר פורסמו בערוץ"
-            className="text-xs bg-surface border border-border rounded-lg px-3 py-2 hover:border-accent disabled:opacity-50 transition"
+            className="text-xs bg-card border border-border rounded-lg px-3 py-2 hover:border-primary disabled:opacity-50 transition"
           >
             {syncing ? "מסנכרן…" : "🔄 סנכרן תוכן מיוטיוב"}
           </button>
         </div>
       </div>
-      {syncMsg && <p className="text-xs text-muted-on-navy">{syncMsg}</p>}
+      {syncMsg && <p className="text-xs text-muted-foreground">{syncMsg}</p>}
 
       {tab === "overview" && <OverviewTab period={period} />}
       {tab === "content" && <ContentTab period={period} />}
@@ -115,7 +115,7 @@ function OverviewTab({ period }: { period: Period }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
+      <section className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-4">
         <h2 className="font-bold text-center">
           היו {fmtNum(views)} צפיות בערוץ בתקופה: {period.label}
         </h2>
@@ -135,15 +135,15 @@ function OverviewTab({ period }: { period: Period }) {
         />
       </section>
 
-      <section className="bg-surface border border-border rounded-2xl p-5">
+      <section className="bg-card border border-border rounded-2xl p-5">
         <h3 className="font-bold text-sm mb-3">התוכן המוביל שלך במהלך התקופה הזו</h3>
         {top.length === 0 ? (
-          <p className="text-xs text-muted">אין נתוני תוכן לתקופה הזו.</p>
+          <p className="text-xs text-muted-foreground">אין נתוני תוכן לתקופה הזו.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-muted text-right">
+                <tr className="text-xs text-muted-foreground text-right">
                   <th className="py-1.5 font-medium">תוכן</th>
                   <th className="py-1.5 font-medium">משך צפייה ממוצע</th>
                   <th className="py-1.5 font-medium">צפיות</th>
@@ -156,18 +156,18 @@ function OverviewTab({ period }: { period: Period }) {
                   return (
                     <tr key={id} className="border-t border-border">
                       <td className="py-2 pl-3">
-                        <a href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-accent">
+                        <a href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-primary">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="w-20 h-11 object-cover rounded-md shrink-0" />
                           <span className="min-w-0">
                             <span className="line-clamp-2">{m?.title ?? id}</span>
-                            {m?.publishedAt && <span className="block text-xs text-muted">{fmtDateShort(m.publishedAt)}</span>}
+                            {m?.publishedAt && <span className="block text-xs text-muted-foreground">{fmtDateShort(m.publishedAt)}</span>}
                           </span>
                         </a>
                       </td>
                       <td className="py-2 whitespace-nowrap">
                         {fmtDuration(Number(r[4] ?? 0))}{" "}
-                        <span className="text-muted text-xs">({Number(r[5] ?? 0).toFixed(1)}%)</span>
+                        <span className="text-muted-foreground text-xs">({Number(r[5] ?? 0).toFixed(1)}%)</span>
                       </td>
                       <td className="py-2 font-semibold">{fmtNum(Number(r[1] ?? 0))}</td>
                     </tr>
@@ -209,7 +209,7 @@ function ContentTab({ period }: { period: Period }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
+      <section className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-4">
         <div className="flex items-center gap-2">
           {(
             [
@@ -222,7 +222,7 @@ function ContentTab({ period }: { period: Period }) {
               key={f.key}
               onClick={() => setFilter(f.key)}
               className={`text-xs rounded-full px-3 py-1.5 border transition ${
-                filter === f.key ? "bg-foreground text-white border-foreground font-semibold" : "border-border text-muted hover:border-accent"
+                filter === f.key ? "bg-foreground text-white border-foreground font-semibold" : "border-border text-muted-foreground hover:border-primary"
               }`}
             >
               {f.label}
@@ -240,22 +240,22 @@ function ContentTab({ period }: { period: Period }) {
       </section>
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
-        <section className="bg-surface border border-border rounded-2xl p-5">
+        <section className="bg-card border border-border rounded-2xl p-5">
           <h3 className="font-bold text-sm mb-1">איך הצופים הגיעו לתוכן שלך</h3>
-          <p className="text-xs text-muted mb-3">צפיות · {period.label}</p>
+          <p className="text-xs text-muted-foreground mb-3">צפיות · {period.label}</p>
           <BarList items={traffic} />
         </section>
 
-        <section className="bg-surface border border-border rounded-2xl p-5">
+        <section className="bg-card border border-border rounded-2xl p-5">
           <h3 className="font-bold text-sm mb-1">
             {filter === "shorts" ? "סרטוני Shorts מובילים" : "התוכן המוביל"}
           </h3>
-          <p className="text-xs text-muted mb-3">צפיות · {period.label}</p>
+          <p className="text-xs text-muted-foreground mb-3">צפיות · {period.label}</p>
           <div className="flex flex-col gap-2">
             {filtered.slice(0, 8).map((r) => {
               const id = String(r[0]);
               return (
-                <a key={id} href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-accent text-sm">
+                <a key={id} href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-primary text-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="w-16 h-9 object-cover rounded shrink-0" />
                   <span className="flex-1 truncate">{meta[id]?.title ?? id}</span>
@@ -263,7 +263,7 @@ function ContentTab({ period }: { period: Period }) {
                 </a>
               );
             })}
-            {filtered.length === 0 && <p className="text-xs text-muted">אין תוכן מהסוג הזה בתקופה.</p>}
+            {filtered.length === 0 && <p className="text-xs text-muted-foreground">אין תוכן מהסוג הזה בתקופה.</p>}
           </div>
         </section>
       </div>
@@ -312,7 +312,7 @@ function AudienceTab({ period }: { period: Period }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-surface border border-border rounded-2xl p-5">
+      <section className="bg-card border border-border rounded-2xl p-5">
         <h3 className="font-bold text-sm mb-3">שינוי מצטבר במנויים · {period.label}</h3>
         <AreaChart
           series={[{ points: subsCumulative, color: CHART.primary, fill: true }]}
@@ -352,9 +352,9 @@ function AudienceTab({ period }: { period: Period }) {
 
 function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
+    <section className="bg-card border border-border rounded-2xl p-5">
       <h3 className="font-bold text-sm mb-1">{title}</h3>
-      {sub && <p className="text-xs text-muted mb-3">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground mb-3">{sub}</p>}
       {children}
     </section>
   );
@@ -362,7 +362,7 @@ function Card({ title, sub, children }: { title: string; sub?: string; children:
 
 function Loading() {
   return (
-    <div className="bg-surface border border-border rounded-2xl p-8 text-center text-sm text-muted">
+    <div className="bg-card border border-border rounded-2xl p-8 text-center text-sm text-muted-foreground">
       ⏳ טוען נתונים מיוטיוב…
     </div>
   );
@@ -370,12 +370,12 @@ function Loading() {
 
 function ErrorBox({ msg }: { msg: string }) {
   return (
-    <div className="bg-surface border border-border rounded-2xl p-6 text-sm text-danger">
+    <div className="bg-card border border-border rounded-2xl p-6 text-sm text-destructive">
       שגיאה בשליפת הנתונים: {msg}
     </div>
   );
 }
 
 function Empty() {
-  return <p className="text-xs text-muted">אין מספיק נתונים לתקופה הזו.</p>;
+  return <p className="text-xs text-muted-foreground">אין מספיק נתונים לתקופה הזו.</p>;
 }

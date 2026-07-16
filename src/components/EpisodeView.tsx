@@ -271,13 +271,13 @@ export default function EpisodeView({
       )}
 
       {errored && (
-        <div className="bg-red-50 border border-red-200 text-danger rounded-xl p-4 text-sm flex items-center justify-between gap-3">
+        <div className="bg-red-50 border border-red-200 text-destructive rounded-xl p-4 text-sm flex items-center justify-between gap-3">
           <span>
             <strong>שגיאה בשלב {STAGE_LABELS[errored.stage]}:</strong> {errored.error}
           </span>
           <button
             onClick={() => driveChain(nextForce(jobs, needsExtract))}
-            className="shrink-0 bg-danger text-white rounded-lg px-3 py-1.5 text-sm hover:opacity-90"
+            className="shrink-0 bg-destructive text-destructive-foreground rounded-lg px-3 py-1.5 text-sm hover:opacity-90"
           >
             נסה שוב
           </button>
@@ -287,14 +287,14 @@ export default function EpisodeView({
       {status !== "ready" && !errored && jobs.length > 0 && (
         <button
           onClick={() => driveChain(nextForce(jobs, needsExtract))}
-          className="self-start text-sm text-muted-on-navy hover:text-accent"
+          className="self-start text-sm text-muted-foreground hover:text-primary"
         >
           ▶︎ המשך עיבוד ידנית (אם נתקע)
         </button>
       )}
 
       {gens.length === 0 && processing && (
-        <p className="text-muted-on-navy text-sm">⏳ מעבד את הפרק… התוצרים יופיעו כאן אוטומטית.</p>
+        <p className="text-muted-foreground text-sm">⏳ מעבד את הפרק… התוצרים יופיעו כאן אוטומטית.</p>
       )}
 
       {KIND_ORDER.map((kind) => {
@@ -323,10 +323,10 @@ export default function EpisodeView({
       {gens.some((g) => g.kind === "carousel" || g.kind === "quote" || g.kind === "idea") && (
         <a
           href={`/ideas?episode=${episodeId}`}
-          className="bg-surface border border-border rounded-2xl p-4 text-sm font-medium hover:border-accent transition flex items-center justify-between"
+          className="bg-card border border-border rounded-2xl p-4 text-sm font-medium hover:border-primary transition flex items-center justify-between"
         >
           <span>💡 רעיונות לתוכן מהפרק הזה — ציטוטים, קרוסלות ורעיונות</span>
-          <span className="text-accent">פתיחה ←</span>
+          <span className="text-primary">פתיחה ←</span>
         </a>
       )}
 
@@ -354,16 +354,16 @@ function StatusTimeline({
   const icon = (s?: string) =>
     s === "done" ? "✅" : s === "running" ? "⏳" : s === "error" ? "❌" : "○";
   return (
-    <div className="bg-surface border border-border rounded-2xl p-4 flex flex-wrap gap-4 items-center">
+    <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-4 items-center">
       {stages.map((st) => (
         <div key={st.key} className="flex items-center gap-2 text-sm">
           <span>{icon(statusOf(st.key))}</span>
-          <span className={statusOf(st.key) === "running" ? "text-accent font-medium" : ""}>
+          <span className={statusOf(st.key) === "running" ? "text-primary font-medium" : ""}>
             {st.label}
           </span>
         </div>
       ))}
-      {processing && <span className="text-xs text-muted">מתעדכן אוטומטית…</span>}
+      {processing && <span className="text-xs text-muted-foreground">מתעדכן אוטומטית…</span>}
     </div>
   );
 }
@@ -390,20 +390,20 @@ function Section({
   const [fb, setFb] = useState("");
 
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
+    <section className="bg-card border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold">{KIND_LABELS[kind]}</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFbOpen((v) => !v)}
-            className="text-xs text-muted hover:text-accent"
+            className="text-xs text-muted-foreground hover:text-primary"
           >
             רענון עם הערה
           </button>
           <button
             onClick={() => onRegenerate(kind)}
             disabled={busy}
-            className="text-sm border border-border rounded-lg px-3 py-1.5 hover:border-accent disabled:opacity-50 transition"
+            className="text-sm border border-border rounded-lg px-3 py-1.5 hover:border-primary disabled:opacity-50 transition"
           >
             {busy ? "מרענן…" : "🔄 רענן"}
           </button>
@@ -416,7 +416,7 @@ function Section({
             value={fb}
             onChange={(e) => setFb(e.target.value)}
             placeholder="מה לשפר? (למשל: קצר יותר, פחות שיווקי, יותר הומור)"
-            className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent"
+            className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
           />
           <button
             onClick={() => {
@@ -425,7 +425,7 @@ function Section({
               setFb("");
             }}
             disabled={busy}
-            className="bg-accent text-accent-foreground rounded-lg px-3 py-1.5 text-sm disabled:opacity-50"
+            className="bg-brand text-brand-foreground rounded-lg px-3 py-1.5 text-sm disabled:opacity-50"
           >
             שלח
           </button>
@@ -456,7 +456,7 @@ function SelectStar({ gen, onToggleSelect }: { gen: Generation; onToggleSelect: 
       className={`shrink-0 text-xs rounded-md px-2.5 py-1 border font-medium transition ${
         gen.selected
           ? "bg-success text-white border-success"
-          : "border-border text-muted hover:border-accent hover:text-accent"
+          : "border-border text-muted-foreground hover:border-primary hover:text-primary"
       }`}
     >
       {gen.selected ? "✓ מאושר" : "אשר"}
@@ -479,10 +479,10 @@ function ApprovalBar({
   const done = required.filter(isApproved).length;
   const allDone = isPublishReady(gens, thumbnailReady, episodeType);
   return (
-    <div className="bg-surface border border-border rounded-2xl p-4">
+    <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="font-bold text-sm">{allDone ? "✓ מוכן לפרסום" : "מה צריך לאשר לפני פרסום"}</span>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted-foreground">
           {done}/{required.length} אושרו
         </span>
       </div>
@@ -490,7 +490,7 @@ function ApprovalBar({
         {required.map((k) => (
           <span
             key={k}
-            className={`text-xs flex items-center gap-1 ${isApproved(k) ? "text-success font-medium" : "text-muted"}`}
+            className={`text-xs flex items-center gap-1 ${isApproved(k) ? "text-success font-medium" : "text-muted-foreground"}`}
           >
             {isApproved(k) ? "✓" : "○"} {KIND_LABELS[k]}
           </span>
@@ -567,14 +567,14 @@ function FinalThumbnailPanel({
   }
 
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
+    <section className="bg-card border border-border rounded-2xl p-5">
       <h3 className="font-bold mb-1">חלופה ידנית — Canva / העלאת קובץ</h3>
-      <p className="text-xs text-muted mb-3">
+      <p className="text-xs text-muted-foreground mb-3">
         רק אם רוצים קאבר שונה מהאוטומטי: עורכים ב-Canva ומעלים PNG. גם זה ידרוס את הקאבר שיעלה ליוטיוב.
       </p>
 
       {approvedTitle ? (
-        <div className="bg-surface-2 rounded-lg p-3 mb-3 flex items-center justify-between gap-2">
+        <div className="bg-muted rounded-lg p-3 mb-3 flex items-center justify-between gap-2">
           <span className="text-sm">
             כותרת מאושרת לתמונה: <b>{approvedTitle}</b>
           </span>
@@ -584,13 +584,13 @@ function FinalThumbnailPanel({
               setCopied(true);
               setTimeout(() => setCopied(false), 1200);
             }}
-            className="shrink-0 text-xs text-muted hover:text-accent"
+            className="shrink-0 text-xs text-muted-foreground hover:text-primary"
           >
             {copied ? "הועתק ✓" : "העתק"}
           </button>
         </div>
       ) : (
-        <p className="text-sm text-muted mb-3">
+        <p className="text-sm text-muted-foreground mb-3">
           אשרי קודם כותרת ב״כותרות לתמונה הממוזערת״, ואז העתיקי אותה לקאבר.
         </p>
       )}
@@ -601,7 +601,7 @@ function FinalThumbnailPanel({
             href={canvaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90"
+            className="bg-brand text-brand-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90"
           >
             🎨 פתח את הקאברים ב-Canva
           </a>
@@ -610,7 +610,7 @@ function FinalThumbnailPanel({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="border border-border rounded-lg px-4 py-2 text-sm hover:border-accent disabled:opacity-50"
+          className="border border-border rounded-lg px-4 py-2 text-sm hover:border-primary disabled:opacity-50"
         >
           {busy ? "מעלה…" : thumbnailPath ? "החלף תמונה" : "העלה תמונה ממוזערת סופית"}
         </button>
@@ -619,7 +619,7 @@ function FinalThumbnailPanel({
             type="button"
             onClick={deleteThumb}
             disabled={busy}
-            className="border border-border rounded-lg px-4 py-2 text-sm text-danger hover:border-danger disabled:opacity-50"
+            className="border border-border rounded-lg px-4 py-2 text-sm text-destructive hover:border-danger disabled:opacity-50"
           >
             🗑 מחק תמונה
           </button>
@@ -634,7 +634,7 @@ function FinalThumbnailPanel({
         </div>
       )}
 
-      <p className="text-xs text-muted mt-2">
+      <p className="text-xs text-muted-foreground mt-2">
         פותחים את הקאברים → בוחרים קאבר → מדביקים את הכותרת בפונט הקיים → מייצאים PNG → מעלים כאן.
       </p>
     </section>
@@ -650,7 +650,7 @@ export function CopyBtn({ text }: { text: string }) {
         setDone(true);
         setTimeout(() => setDone(false), 1200);
       }}
-      className="shrink-0 text-xs text-muted hover:text-accent"
+      className="shrink-0 text-xs text-muted-foreground hover:text-primary"
     >
       {done ? "הועתק ✓" : "העתק"}
     </button>
@@ -674,7 +674,7 @@ export function TextItem({
   const [val, setVal] = useState(text);
 
   return (
-    <div className={`rounded-xl border p-3 flex gap-3 ${gen.selected ? "border-accent bg-accent-soft/40" : "border-border"}`}>
+    <div className={`rounded-xl border p-3 flex gap-3 ${gen.selected ? "border-primary bg-brand-soft" : "border-border"}`}>
       <SelectStar gen={gen} onToggleSelect={onToggleSelect} />
       <div className="flex-1 min-w-0">
         {editing ? (
@@ -682,12 +682,12 @@ export function TextItem({
             value={val}
             onChange={(e) => setVal(e.target.value)}
             rows={Math.max(2, Math.ceil(val.length / 60))}
-            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm outline-none focus:border-accent"
+            className="w-full border border-border rounded-lg px-2 py-1.5 text-sm outline-none focus:border-ring"
           />
         ) : (
           <p className="text-sm whitespace-pre-wrap leading-relaxed">{text}</p>
         )}
-        {format && <span className="inline-block mt-1 text-[11px] bg-slate-100 text-muted rounded px-1.5 py-0.5">{format}</span>}
+        {format && <span className="inline-block mt-1 text-[11px] bg-slate-100 text-muted-foreground rounded px-1.5 py-0.5">{format}</span>}
       </div>
       <div className="flex flex-col items-end gap-1">
         <CopyBtn text={text} />
@@ -698,12 +698,12 @@ export function TextItem({
                 onSaveEdit(gen, { ...gen.content, text: val });
                 setEditing(false);
               }}
-              className="text-xs text-accent"
+              className="text-xs text-primary"
             >
               שמור
             </button>
           ) : (
-            <button onClick={() => setEditing(true)} className="text-xs text-muted hover:text-accent">
+            <button onClick={() => setEditing(true)} className="text-xs text-muted-foreground hover:text-primary">
               ערוך
             </button>
           ))}
@@ -717,11 +717,11 @@ export function CarouselCard({ gen, onToggleSelect }: { gen: Generation; onToggl
   const slides = (gen.content.slides as string[]) ?? [];
   const copyText = [title, ...slides.map((s, i) => `${i + 1}. ${s}`)].join("\n");
   return (
-    <div className={`rounded-xl border p-3 flex gap-3 ${gen.selected ? "border-accent bg-accent-soft/40" : "border-border"}`}>
+    <div className={`rounded-xl border p-3 flex gap-3 ${gen.selected ? "border-primary bg-brand-soft" : "border-border"}`}>
       <SelectStar gen={gen} onToggleSelect={onToggleSelect} />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm mb-1">{title}</p>
-        <ol className="list-decimal pr-4 text-sm text-muted flex flex-col gap-0.5">
+        <ol className="list-decimal pr-4 text-sm text-muted-foreground flex flex-col gap-0.5">
           {slides.map((s, i) => (
             <li key={i}>{s}</li>
           ))}
@@ -744,8 +744,8 @@ function ThumbnailCard({
   const concept = (gen.content.concept as string) ?? "";
   const overlay = (gen.content.overlay_text as string) ?? "";
   return (
-    <div className={`rounded-xl border overflow-hidden ${gen.selected ? "border-accent" : "border-border"}`}>
-      <div className="aspect-video bg-slate-100 grid place-items-center text-muted text-xs relative">
+    <div className={`rounded-xl border overflow-hidden ${gen.selected ? "border-primary" : "border-border"}`}>
+      <div className="aspect-video bg-slate-100 grid place-items-center text-muted-foreground text-xs relative">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={concept} className="w-full h-full object-cover" />
@@ -772,12 +772,12 @@ function ThumbnailCard({
 function TranscriptBlock({ transcript }: { transcript: Transcript }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
+    <section className="bg-card border border-border rounded-2xl p-5">
       <button onClick={() => setOpen((v) => !v)} className="font-bold flex items-center gap-2">
         תמלול מלא {open ? "▲" : "▼"}
       </button>
       {open && (
-        <p className="mt-3 text-sm whitespace-pre-wrap leading-relaxed text-muted max-h-96 overflow-y-auto">
+        <p className="mt-3 text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground max-h-96 overflow-y-auto">
           {transcript.text}
         </p>
       )}

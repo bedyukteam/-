@@ -357,14 +357,14 @@ export default function CoverStudio({
   const isApproved = !!thumbnailPath;
 
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
+    <section className="bg-card border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between gap-2 mb-1">
         <h3 className="font-bold">תמונה ממוזערת — קאבר אוטומטי</h3>
         {isApproved && (
           <span className="text-xs text-success font-semibold">✓ קאבר מאושר לפרק</span>
         )}
       </div>
-      <p className="text-sm text-muted mb-4">
+      <p className="text-sm text-muted-foreground mb-4">
         הקאבר נוצר אוטומטית מתבנית מותג עם הכותרת שהכי מתאימה לפרק. אפשר לערוך טקסט, להחליף רקע,
         להעלות תמונה משלך, להוריד, או לאשר — הקאבר המאושר הוא זה שיעלה אוטומטית עם הפרק ליוטיוב.
       </p>
@@ -380,7 +380,7 @@ export default function CoverStudio({
         />
       </div>
       {bgLoadError && (
-        <p className="text-xs text-danger mb-3">טעינת הרקע נכשלה — נסי לרענן את הדף</p>
+        <p className="text-xs text-destructive mb-3">טעינת הרקע נכשלה — נסי לרענן את הדף</p>
       )}
 
       {/* Background switcher */}
@@ -389,11 +389,11 @@ export default function CoverStudio({
           type="button"
           onClick={cycleBg}
           disabled={covers.length < 2}
-          className="border border-border rounded-lg px-3 py-1.5 text-sm hover:border-accent disabled:opacity-50"
+          className="border border-border rounded-lg px-3 py-1.5 text-sm hover:border-primary disabled:opacity-50"
         >
           ↻ החלף רקע
         </button>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted-foreground">
           {covers.length ? `רקע ${bgIndex + 1} מתוך ${covers.length} (אקראי בכל לחיצה)` : "טוען רקעים…"}
         </span>
       </div>
@@ -404,7 +404,7 @@ export default function CoverStudio({
           <button
             type="button"
             onClick={() => refInputRef.current?.click()}
-            className="border border-border rounded-lg px-3 py-1.5 text-sm hover:border-accent"
+            className="border border-border rounded-lg px-3 py-1.5 text-sm hover:border-primary"
           >
             🖼️ העלה תמונה לקאבר
           </button>
@@ -412,7 +412,7 @@ export default function CoverStudio({
             <button
               type="button"
               onClick={clearRef}
-              className="text-xs text-muted hover:text-danger"
+              className="text-xs text-muted-foreground hover:text-destructive"
             >
               הסר תמונה
             </button>
@@ -424,7 +424,7 @@ export default function CoverStudio({
             className="hidden"
             onChange={onRefFile}
           />
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             {refImg
               ? "התמונה שלך הוטמעה במקום התמונה שבתבנית"
               : "אופציונלי — התמונה תיכנס במקום התמונה הקיימת בתבנית"}
@@ -433,7 +433,7 @@ export default function CoverStudio({
 
         {refImg && (
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl">
-            <label className="text-xs text-muted flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground flex flex-col gap-1">
               גודל
               <input
                 type="range"
@@ -444,7 +444,7 @@ export default function CoverStudio({
                 onChange={(e) => setRefScale(Number(e.target.value))}
               />
             </label>
-            <label className="text-xs text-muted flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground flex flex-col gap-1">
               מיקום אופקי
               <input
                 type="range"
@@ -455,7 +455,7 @@ export default function CoverStudio({
                 onChange={(e) => setRefX(Number(e.target.value))}
               />
             </label>
-            <label className="text-xs text-muted flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground flex flex-col gap-1">
               מיקום אנכי
               <input
                 type="range"
@@ -478,12 +478,12 @@ export default function CoverStudio({
         rows={2}
         dir="rtl"
         placeholder="כתבי כאן כל טקסט — הקאבר יתעדכן מיד בפונט של המותג"
-        className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm resize-none focus:outline-none focus:border-accent mb-2"
+        className="w-full bg-muted border border-border rounded-lg p-3 text-sm resize-none focus:outline-none focus:border-ring mb-2"
       />
 
       {/* Title size + position — live adjustment */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-2 max-w-xl">
-        <label className="text-xs text-muted flex flex-col gap-1">
+        <label className="text-xs text-muted-foreground flex flex-col gap-1">
           גודל כותרת
           <input
             type="range"
@@ -494,7 +494,7 @@ export default function CoverStudio({
             onChange={(e) => setTitleSize(Number(e.target.value))}
           />
         </label>
-        <label className="text-xs text-muted flex flex-col gap-1">
+        <label className="text-xs text-muted-foreground flex flex-col gap-1">
           מיקום אופקי
           <input
             type="range"
@@ -505,7 +505,7 @@ export default function CoverStudio({
             onChange={(e) => setTitleDX(Number(e.target.value))}
           />
         </label>
-        <label className="text-xs text-muted flex flex-col gap-1">
+        <label className="text-xs text-muted-foreground flex flex-col gap-1">
           מיקום אנכי
           <input
             type="range"
@@ -525,7 +525,7 @@ export default function CoverStudio({
             setTitleDX(0);
             setTitleDY(0);
           }}
-          className="text-xs text-muted hover:text-accent mb-3"
+          className="text-xs text-muted-foreground hover:text-primary mb-3"
         >
           ↺ אפס גודל ומיקום
         </button>
@@ -536,7 +536,7 @@ export default function CoverStudio({
             type="button"
             onClick={savePosition}
             disabled={savingPosition}
-            className="text-xs text-accent hover:opacity-80 mb-3 mr-3 disabled:opacity-50"
+            className="text-xs text-primary hover:opacity-80 mb-3 mr-3 disabled:opacity-50"
           >
             {savingPosition ? "שומרת…" : "💾 שמור מיקום לתבנית הזו"}
           </button>
@@ -552,8 +552,8 @@ export default function CoverStudio({
               onClick={() => setTitle(opt)}
               className={`text-xs rounded-full px-3 py-1 border transition ${
                 title.trim() === opt.trim()
-                  ? "bg-accent-soft border-accent text-foreground"
-                  : "border-border text-muted hover:border-accent"
+                  ? "bg-brand-soft border-primary text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary"
               }`}
             >
               {opt}
@@ -568,7 +568,7 @@ export default function CoverStudio({
           type="button"
           onClick={onApprove}
           disabled={busy || !title.trim()}
-          className="bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+          className="bg-brand text-brand-foreground rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "מאשרת…" : "✓ אשרי קאבר זה"}
         </button>
@@ -576,7 +576,7 @@ export default function CoverStudio({
           type="button"
           onClick={onDownload}
           disabled={!title.trim()}
-          className="border border-border rounded-lg px-4 py-2 text-sm hover:border-accent disabled:opacity-50"
+          className="border border-border rounded-lg px-4 py-2 text-sm hover:border-primary disabled:opacity-50"
         >
           ⬇ הורדה
         </button>
@@ -585,7 +585,7 @@ export default function CoverStudio({
             הקאבר אושר ויעלה אוטומטית עם הפרק ✓
           </span>
         )}
-        {done === "downloaded" && <span className="text-sm text-muted">הקובץ הורד ✓</span>}
+        {done === "downloaded" && <span className="text-sm text-muted-foreground">הקובץ הורד ✓</span>}
       </div>
     </section>
   );
