@@ -18,10 +18,11 @@ export default async function HomePage() {
 
   return (
     <div className="grid md:grid-cols-[1fr_1.2fr] gap-8 items-start">
-      <UploadForm />
+      <div id="new" className="scroll-mt-20">
+        <UploadForm />
+      </div>
 
       <section>
-        <h2 className="font-bold text-lg mb-4 text-foreground">הפרקים שלי</h2>
         {list.length === 0 ? (
           <p className="text-muted-foreground text-sm bg-card border border-border rounded-2xl p-6">
             עדיין אין פרקים. העלי פרק ראשון כדי להתחיל ✨

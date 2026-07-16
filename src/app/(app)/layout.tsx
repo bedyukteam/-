@@ -1,8 +1,7 @@
-import Link from "next/link";
-import Image from "next/image";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import SettingsDrawer from "@/components/SettingsDrawer";
+import AppSidebar from "@/components/AppSidebar";
+import AppTopbar from "@/components/AppTopbar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -13,46 +12,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <div className="min-h-dvh">
-      <header className="sticky top-0 z-10 bg-panel-dark border-b border-border-navy">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center bg-white rounded-lg px-2.5 py-1"
-          >
-            <Image
-              src="/logo.png"
-              alt="בדיוק"
-              width={500}
-              height={500}
-              priority
-              className="h-8 w-auto"
-            />
-          </Link>
-          <nav className="flex items-center gap-5 text-sm text-on-navy">
-            <Link href="/" className="hover:text-accent transition">
-              הפרקים שלי
-            </Link>
-            <Link href="/ideas" className="hover:text-accent transition">
-              רעיונות לתוכן
-            </Link>
-            <Link href="/analytics" className="hover:text-accent transition">
-              אנליטיקס
-            </Link>
-            <Link href="/settings" className="hover:text-accent transition">
-              הנחיות סגנון
-            </Link>
-            <Suspense fallback={<span className="w-9 h-9" />}>
-              <SettingsDrawer
-                ytConnected={!!ytToken}
-                canvaConnected={!!canvaToken}
-                templateCount={templateCount ?? 0}
-              />
-            </Suspense>
-          </nav>
-        </div>
-      </header>
-      <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
+    <div className="flex min-h-dvh">
+      {/* first flex child = the right edge in RTL */}
+      <Suspense fallback={<div className="hidden md:block w-60 shrink-0 bg-sidebar" />}>
+        <AppSidebar
+          ytConnected={!!ytToken}
+          canvaConnected={!!canvaToken}
+          templateCount={templateCount ?? 0}
+        />
+      </Suspense>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <AppTopbar />
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-6">{children}</main>
+      </div>
     </div>
   );
 }

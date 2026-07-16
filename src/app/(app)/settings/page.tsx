@@ -30,7 +30,6 @@ export default async function SettingsPage() {
   return (
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       <div>
-        <h1 className="text-2xl font-extrabold mb-2 text-foreground">הנחיות סגנון</h1>
         <p className="text-muted-foreground text-sm mb-5">
           כאן את מלמדת את המערכת באיזו שפה ובאיזה וויזואל להפיק את התוכן. ההנחיות
           נכנסות לכל פרק חדש, יחד עם הדוגמאות שאישרת — וכך הסגנון משתפר מפרק לפרק.

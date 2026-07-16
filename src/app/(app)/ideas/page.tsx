@@ -26,7 +26,6 @@ export default async function IdeasPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-2 text-foreground">רעיונות לתוכן</h1>
       <p className="text-muted-foreground text-sm mb-6">
         ציטוטים, קרוסלות ורעיונות לתוכן נוסף שנוצרו מהתמלול של כל פרק ושורט — מסודרים לפי
         הפרק שממנו נוצרו. סימון ★ שומר פריט כדוגמה ללמידת הסגנון.

@@ -1,13 +1,24 @@
 // studio/src/components/SettingsDrawer.tsx
-// Account drawer that slides in from the left edge: profile (avatar + display
-// name), connections (YouTube/Canva panels), security (password change) and
-// sign-out. The header avatar button and the drawer live together so they can
-// share state. Opens automatically after an OAuth callback (/?connected=...).
+// Account drawer (shadcn Sheet, slides from the left edge): profile (avatar +
+// display name), connections (YouTube/Canva), password change and sign-out.
+// The trigger is the account row at the bottom of the sidebar. Opens
+// automatically after an OAuth callback (/?connected=...).
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, ImagePlus, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import YouTubeConnectPanel from "@/components/YouTubeConnectPanel";
 import CanvaConnectPanel from "@/components/CanvaConnectPanel";
 
@@ -141,132 +152,130 @@ export default function SettingsDrawer({
 
   return (
     <>
-      {/* header trigger — avatar or initial */}
+      {/* sidebar account row — the drawer trigger */}
       <button
         onClick={() => setOpen(true)}
+        className="w-full flex items-center gap-3 rounded-xl px-2.5 py-2 text-start hover:bg-sidebar-accent/60 transition"
         title="הגדרות וחשבון"
-        className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/30 hover:border-primary transition grid place-items-center bg-white/10 text-white text-sm font-bold shrink-0"
       >
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="פרופיל" className="w-full h-full object-cover" />
-        ) : (
-          initial
-        )}
+        <Avatar className="h-9 w-9 border border-sidebar-border">
+          <AvatarImage src={avatarUrl || undefined} alt="" />
+          <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-bold">
+            {initial}
+          </AvatarFallback>
+        </Avatar>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-sidebar-accent-foreground truncate">
+            {name || "החשבון שלי"}
+          </span>
+          <span className="block text-[11px] text-sidebar-foreground/60 truncate" dir="ltr">
+            {email}
+          </span>
+        </span>
+        <ChevronLeft className="size-4 text-sidebar-foreground/50 shrink-0" />
       </button>
 
-      {/* backdrop */}
-      {open && <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setOpen(false)} />}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="left" className="w-[24rem] max-w-[92vw] bg-background p-0 gap-0">
+          <SheetHeader className="px-5 py-4 border-b border-border">
+            <SheetTitle>הגדרות וחשבון</SheetTitle>
+            <SheetDescription className="sr-only">פרופיל, חיבורים ואבטחה</SheetDescription>
+          </SheetHeader>
 
-      {/* drawer — slides from the LEFT edge */}
-      <aside
-        className={`fixed top-0 left-0 h-dvh w-[22rem] max-w-[90vw] bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-        dir="rtl"
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="font-extrabold">הגדרות וחשבון</h2>
-          <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">
-            ✕
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-          {/* פרופיל */}
-          <section className="border border-border rounded-2xl p-4 flex flex-col gap-3">
-            <h3 className="font-bold text-sm">פרופיל</h3>
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 grid place-items-center text-xl font-bold text-muted-foreground shrink-0">
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  initial
-                )}
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            {/* פרופיל */}
+            <section className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3">
+              <h3 className="font-bold text-sm">פרופיל</h3>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={avatarUrl || undefined} alt="" />
+                  <AvatarFallback className="text-xl font-bold">{initial}</AvatarFallback>
+                </Avatar>
+                <label className="inline-flex items-center gap-1.5 text-xs border border-border rounded-lg px-3 py-1.5 hover:border-primary transition cursor-pointer">
+                  <ImagePlus className="size-3.5" />
+                  {uploadingAvatar ? "מעלה…" : "החלפת תמונה"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingAvatar}
+                    onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
+                  />
+                </label>
               </div>
-              <label className="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-primary transition cursor-pointer">
-                {uploadingAvatar ? "מעלה…" : "🖼 החלפת תמונה"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploadingAvatar}
-                  onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
-                />
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-xs text-muted-foreground">שם תצוגה</span>
+                <div className="flex gap-2">
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="איך לקרוא לך?"
+                  />
+                  <Button variant="secondary" size="sm" onClick={saveName} disabled={savingName}>
+                    {savingName ? "שומר…" : "שמור"}
+                  </Button>
+                </div>
               </label>
-            </div>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs text-muted-foreground">שם תצוגה</span>
-              <div className="flex gap-2">
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="איך לקרוא לך?"
-                  className="flex-1 border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
-                />
-                <button
-                  onClick={saveName}
-                  disabled={savingName}
-                  className="text-xs bg-brand text-brand-foreground rounded-lg px-3 font-semibold disabled:opacity-50"
-                >
-                  {savingName ? "שומר…" : "שמור"}
-                </button>
-              </div>
-            </label>
-            <p className="text-xs text-muted-foreground" dir="ltr">
-              {email}
-            </p>
-            {profileMsg && <p className="text-xs text-muted-foreground">{profileMsg}</p>}
-          </section>
+              <p className="text-xs text-muted-foreground" dir="ltr">
+                {email}
+              </p>
+              {profileMsg && <p className="text-xs text-muted-foreground">{profileMsg}</p>}
+            </section>
 
-          {/* חיבורים */}
-          <section className="flex flex-col gap-3">
-            <h3 className="font-bold text-sm px-1">חיבורים</h3>
-            <YouTubeConnectPanel connected={ytConnected} statusParam={status?.yt} />
-            <CanvaConnectPanel connected={canvaConnected} statusParam={status?.canva} templateCount={templateCount} />
-          </section>
+            {/* חיבורים */}
+            <section className="flex flex-col gap-3">
+              <h3 className="font-bold text-sm px-1">חיבורים</h3>
+              <YouTubeConnectPanel connected={ytConnected} statusParam={status?.yt} />
+              <CanvaConnectPanel
+                connected={canvaConnected}
+                statusParam={status?.canva}
+                templateCount={templateCount}
+              />
+            </section>
 
-          {/* אבטחה */}
-          <section className="border border-border rounded-2xl p-4 flex flex-col gap-2">
-            <h3 className="font-bold text-sm">שינוי סיסמה</h3>
-            <input
-              type="password"
-              value={pw1}
-              onChange={(e) => setPw1(e.target.value)}
-              placeholder="סיסמה חדשה (8 תווים לפחות)"
-              className="border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
-            />
-            <input
-              type="password"
-              value={pw2}
-              onChange={(e) => setPw2(e.target.value)}
-              placeholder="אימות סיסמה חדשה"
-              className="border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-ring"
-            />
-            <button
-              onClick={changePassword}
-              disabled={changingPw || !pw1}
-              className="self-start text-xs bg-brand text-brand-foreground rounded-lg px-3 py-1.5 font-semibold disabled:opacity-50"
-            >
-              {changingPw ? "מעדכן…" : "עדכן סיסמה"}
-            </button>
-            {pwMsg && <p className={`text-xs ${pwMsg.ok ? "text-success" : "text-destructive"}`}>{pwMsg.text}</p>}
-          </section>
+            {/* אבטחה */}
+            <section className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-2">
+              <h3 className="font-bold text-sm">שינוי סיסמה</h3>
+              <Input
+                type="password"
+                value={pw1}
+                onChange={(e) => setPw1(e.target.value)}
+                placeholder="סיסמה חדשה (8 תווים לפחות)"
+              />
+              <Input
+                type="password"
+                value={pw2}
+                onChange={(e) => setPw2(e.target.value)}
+                placeholder="אימות סיסמה חדשה"
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="self-start"
+                onClick={changePassword}
+                disabled={changingPw || !pw1}
+              >
+                {changingPw ? "מעדכן…" : "עדכן סיסמה"}
+              </Button>
+              {pwMsg && (
+                <p className={`text-xs ${pwMsg.ok ? "text-success" : "text-destructive"}`}>
+                  {pwMsg.text}
+                </p>
+              )}
+            </section>
 
-          <p className="text-xs text-muted-foreground text-center">עוד הגדרות יתווספו כאן בהמשך ✨</p>
-        </div>
+            <p className="text-xs text-muted-foreground text-center">עוד הגדרות יתווספו כאן בהמשך ✨</p>
+          </div>
 
-        {/* התנתקות */}
-        <div className="p-4 border-t border-border">
-          <button
-            onClick={signOut}
-            className="w-full border border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-destructive hover:bg-red-50 transition"
-          >
-            התנתקות מהמערכת
-          </button>
-        </div>
-      </aside>
+          {/* התנתקות */}
+          <div className="p-4 border-t border-border">
+            <Button variant="destructive" className="w-full" onClick={signOut}>
+              <LogOut data-icon="inline-start" />
+              התנתקות מהמערכת
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
