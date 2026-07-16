@@ -7,9 +7,11 @@ import ffmpegPath from "ffmpeg-static";
 
 const exec = promisify(execFile);
 
-// At 64 kbps mono, ~0.48 MB/min → a 25-minute segment is ~12 MB, safely under
-// OpenAI's 25 MB per-request cap. Long podcasts get split into ordered chunks.
-const SEGMENT_SECONDS = 1500;
+// gpt-4o-transcribe rejects audio longer than 1400 seconds per request
+// ("maximum for this model", verified empirically 2026-07-17), on top of the
+// 25 MB size cap. 22-minute segments (~10.6 MB at 64 kbps mono) clear both
+// with margin — ffmpeg's segmenter overshoots the nominal cut by a few ms.
+const SEGMENT_SECONDS = 1320;
 
 export interface AudioChunk {
   buffer: Buffer;
