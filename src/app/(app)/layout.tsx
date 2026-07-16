@@ -23,7 +23,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </Suspense>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <AppTopbar />
+        <Suspense fallback={<div className="h-14 border-b border-border" />}>
+          <AppTopbar
+            ytConnected={!!ytToken}
+            canvaConnected={!!canvaToken}
+            templateCount={templateCount ?? 0}
+          />
+        </Suspense>
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-6 py-6">{children}</main>
       </div>
     </div>

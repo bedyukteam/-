@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isNavActive } from "@/components/AppSidebar";
+import SettingsDrawer from "@/components/SettingsDrawer";
 
 function sectionTitle(pathname: string): string {
   if (pathname.startsWith("/episodes")) return "פרק";
@@ -22,7 +23,15 @@ function sectionTitle(pathname: string): string {
   return "הפרקים שלי";
 }
 
-export default function AppTopbar() {
+export default function AppTopbar({
+  ytConnected,
+  canvaConnected,
+  templateCount,
+}: {
+  ytConnected: boolean;
+  canvaConnected: boolean;
+  templateCount: number;
+}) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
 
@@ -79,6 +88,15 @@ export default function AppTopbar() {
               );
             })}
           </nav>
+          {/* account/settings access on mobile (the sidebar row is hidden) */}
+          <div className="mt-auto p-2 border-t border-sidebar-border">
+            <SettingsDrawer
+              ytConnected={ytConnected}
+              canvaConnected={canvaConnected}
+              templateCount={templateCount}
+              autoOpen={false}
+            />
+          </div>
         </SheetContent>
       </Sheet>
     </header>

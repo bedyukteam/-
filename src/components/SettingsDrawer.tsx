@@ -37,10 +37,13 @@ export default function SettingsDrawer({
   ytConnected,
   canvaConnected,
   templateCount,
+  autoOpen = true,
 }: {
   ytConnected: boolean;
   canvaConnected: boolean;
   templateCount: number;
+  /** Only one instance should auto-open on /?connected=... (the sidebar one). */
+  autoOpen?: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -48,7 +51,7 @@ export default function SettingsDrawer({
   const connectedParam = searchParams.get("connected") ?? "";
   const status = CONNECTED_STATUS[connectedParam];
 
-  const [open, setOpen] = useState(!!status);
+  const [open, setOpen] = useState(autoOpen && !!status);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");

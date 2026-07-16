@@ -19,7 +19,9 @@ export async function POST(req: Request) {
     .from("style_profiles")
     .update({
       language_guidelines: language_guidelines ?? "",
-      canva_covers_url: canva_covers_url ?? "",
+      // Legacy manual-Canva link: only touched when explicitly sent (the style
+      // screen no longer edits it; the episode-page fallback still reads it).
+      ...(canva_covers_url !== undefined ? { canva_covers_url } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("channel_id", channelId);
