@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 
 export interface ClipCardData {
@@ -21,8 +20,9 @@ function fmtDuration(sec: number | null): string {
 
 /**
  * One reel card, shared by the episode panel and the /reels inbox.
- * "צפייה" plays the clip inline (download_url serves a direct mp4) —
- * no download or external tab needed.
+ * The player is always visible — press play on any clip to watch it here.
+ * preload="metadata" keeps the grid light: only the first frame + duration
+ * load until a clip is actually played (download_url serves a direct mp4).
  */
 export default function ClipCard({
   clip,
@@ -33,7 +33,6 @@ export default function ClipCard({
   episodeHref?: string;
   episodeTitle?: string;
 }) {
-  const [playing, setPlaying] = useState(false);
   const videoSrc = clip.download_url ?? clip.direct_url;
 
   return (
@@ -57,22 +56,19 @@ export default function ClipCard({
       )}
       <span className="text-xs text-muted-foreground">{fmtDuration(clip.duration_sec)}</span>
 
-      {playing && videoSrc && (
+      {videoSrc && (
         <video
-          src={videoSrc}
+          // #t=0.1 makes browsers render the first video frame as the preview
+          // while preload="metadata" still avoids downloading the whole file.
+          src={`${videoSrc}#t=0.1`}
           controls
-          autoPlay
+          preload="metadata"
           playsInline
-          className="w-full max-h-[70vh] rounded-xl bg-black"
+          className="w-full rounded-xl bg-black aspect-[9/16] object-contain"
         />
       )}
 
       <div className="flex gap-3 text-sm mt-auto pt-2">
-        {videoSrc && (
-          <button onClick={() => setPlaying((p) => !p)} className="underline">
-            {playing ? "סגור נגן" : "▶️ צפייה"}
-          </button>
-        )}
         {clip.download_url && (
           <a href={clip.download_url} target="_blank" rel="noreferrer" className="underline">
             ⬇️ הורדה
