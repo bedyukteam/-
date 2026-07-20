@@ -52,6 +52,7 @@ export async function createMagicClips(opts: {
   webhookUrl?: string;
   minClipLength?: number;
   maxClipLength?: number;
+  dictionary?: string[];
 }): Promise<MagicClipsProject> {
   const res = await fetch(`${API_BASE}/projects/magic-clips`, {
     method: "POST",
@@ -63,6 +64,7 @@ export async function createMagicClips(opts: {
       ...(opts.webhookUrl ? { webhookUrl: opts.webhookUrl } : {}),
       ...(opts.minClipLength ? { minClipLength: opts.minClipLength } : {}),
       ...(opts.maxClipLength ? { maxClipLength: opts.maxClipLength } : {}),
+      ...(opts.dictionary && opts.dictionary.length ? { dictionary: opts.dictionary } : {}),
     }),
   });
   if (!res.ok) {
@@ -197,4 +199,34 @@ export async function exportProject(
 /** Pure: return a new words array with the given index→text edits applied. */
 export function applyWordEdits(words: ProjectWord[], edits: Map<number, string>): ProjectWord[] {
   return words.map((w, i) => (edits.has(i) ? { ...w, text: edits.get(i)! } : w));
+}
+
+/**
+ * Parse the user's brand dictionary (free text, newline/comma separated) into
+ * the API's shape: ≤100 unique terms, each ≤50 chars.
+ */
+export function parseDictionary(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(/[\n,]+/)) {
+    const t = part.trim();
+    if (!t || t.length > 50 || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+    if (out.length >= 100) break;
+  }
+  return out;
+}
+
+/** Available hook-title animation templates (e.g. "tiktok", "hormozi"). */
+export async function listHookTitleTemplates(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/hook-title/templates`, {
+    headers: { "x-api-key": apiKey() },
+  });
+  if (!res.ok) {
+    throw new Error(`שליפת תבניות-הוק נכשלה (${res.status}): ${await res.text()}`);
+  }
+  const data = (await res.json()) as { templates?: string[] };
+  return data.templates ?? [];
 }

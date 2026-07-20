@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getProjectDetail } from "@/lib/submagic";
+import { getProjectDetail, listHookTitleTemplates } from "@/lib/submagic";
 import ReelEditorView, { type ReelEditorClip } from "@/components/ReelEditorView";
 
 export const dynamic = "force-dynamic";
@@ -22,16 +22,23 @@ export default async function ReelEditorPage({
 
   // Editable state comes straight from Submagic (each clip is its own project).
   let words: unknown[] = [];
-  let hook: { text?: string } | boolean | null = null;
+  let hook: { text?: string; template?: string; top?: number; size?: number } | boolean | null =
+    null;
   let removeBadTakes = false;
   let loadError: string | null = null;
+  let hookTemplates: string[] = [];
   try {
     const detail = await getProjectDetail(clipId);
     words = detail.words ?? [];
-    hook = (detail.hookTitle as { text?: string } | boolean | undefined) ?? null;
+    hook = detail.hookTitle ?? null;
     removeBadTakes = !!detail.removeBadTakes;
   } catch (e) {
     loadError = (e as Error).message;
+  }
+  try {
+    hookTemplates = await listHookTitleTemplates();
+  } catch {
+    // non-fatal — the template select just falls back to the default
   }
 
   return (
@@ -40,6 +47,7 @@ export default async function ReelEditorPage({
       initialWords={words as never}
       initialHook={hook}
       initialRemoveBadTakes={removeBadTakes}
+      hookTemplates={hookTemplates}
       loadError={loadError}
     />
   );

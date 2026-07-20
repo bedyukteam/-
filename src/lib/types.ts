@@ -28,6 +28,7 @@ export interface StyleProfile {
   language_guidelines: string;
   visual_guidelines: string;
   canva_covers_url: string;
+  submagic_dictionary?: string | null;
   updated_at: string;
 }
 

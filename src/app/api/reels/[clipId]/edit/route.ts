@@ -7,11 +7,25 @@ import { createClient } from "@/lib/supabase/server";
 import {
   exportProject,
   getProjectDetail,
+  listHookTitleTemplates,
   updateProject,
   type UpdateProjectPayload,
 } from "@/lib/submagic";
 
 export const maxDuration = 300;
+
+// Hook templates barely change — cache for the process lifetime.
+let hookTemplatesCache: string[] | null = null;
+async function hookTemplates(): Promise<string[]> {
+  if (!hookTemplatesCache) {
+    try {
+      hookTemplatesCache = await listHookTitleTemplates();
+    } catch {
+      return [];
+    }
+  }
+  return hookTemplatesCache;
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ clipId: string }> }) {
   const { clipId } = await params;
@@ -26,6 +40,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ clipId:
     return NextResponse.json({
       words: detail.words ?? [],
       hookTitle: detail.hookTitle ?? null,
+      hookTemplates: await hookTemplates(),
       removeBadTakes: detail.removeBadTakes ?? false,
       disableCaptions: detail.disableCaptions ?? false,
       status: detail.status ?? null,

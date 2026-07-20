@@ -166,3 +166,53 @@ describe("applyWordEdits", () => {
     expect(out).not.toBe(words); // no mutation
   });
 });
+
+describe("createMagicClips dictionary", () => {
+  it("includes dictionary only when terms are provided", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "p" }), { status: 202 }));
+    const { createMagicClips } = await import("@/lib/submagic");
+    await createMagicClips({
+      title: "t",
+      youtubeUrl: "https://youtu.be/x",
+      dictionary: ["בדיוק", "יונה משה-דוד"],
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.dictionary).toEqual(["בדיוק", "יונה משה-דוד"]);
+  });
+
+  it("omits dictionary when empty", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "p" }), { status: 202 }));
+    const { createMagicClips } = await import("@/lib/submagic");
+    await createMagicClips({ title: "t", youtubeUrl: "https://youtu.be/x", dictionary: [] });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect("dictionary" in body).toBe(false);
+  });
+});
+
+describe("parseDictionary", () => {
+  it("splits on newlines/commas, trims, dedups, caps term length and count", async () => {
+    const { parseDictionary } = await import("@/lib/submagic");
+    const out = parseDictionary("בדיוק, יונה משה-דוד\n בדיוק \n" + "x".repeat(60) + "\n");
+    expect(out).toEqual(["בדיוק", "יונה משה-דוד"]);
+    const many = parseDictionary(Array.from({ length: 150 }, (_, i) => "מונח" + i).join("\n"));
+    expect(many.length).toBe(100);
+  });
+
+  it("returns [] for null/empty", async () => {
+    const { parseDictionary } = await import("@/lib/submagic");
+    expect(parseDictionary(null)).toEqual([]);
+    expect(parseDictionary("  ")).toEqual([]);
+  });
+});
+
+describe("listHookTitleTemplates", () => {
+  it("GETs the templates list", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ templates: ["tiktok", "laura"] }), { status: 200 }),
+    );
+    const { listHookTitleTemplates } = await import("@/lib/submagic");
+    const t = await listHookTitleTemplates();
+    expect(t).toEqual(["tiktok", "laura"]);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.submagic.co/v1/hook-title/templates");
+  });
+});

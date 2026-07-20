@@ -9,9 +9,10 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { language_guidelines, canva_covers_url } = (await req.json()) as {
+  const { language_guidelines, canva_covers_url, submagic_dictionary } = (await req.json()) as {
     language_guidelines: string;
     canva_covers_url?: string;
+    submagic_dictionary?: string;
   };
   const channelId = process.env.NEXT_PUBLIC_DEFAULT_CHANNEL_ID!;
 
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
       // Legacy manual-Canva link: only touched when explicitly sent (the style
       // screen no longer edits it; the episode-page fallback still reads it).
       ...(canva_covers_url !== undefined ? { canva_covers_url } : {}),
+      ...(submagic_dictionary !== undefined ? { submagic_dictionary } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("channel_id", channelId);

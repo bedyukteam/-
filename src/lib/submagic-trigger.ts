@@ -2,7 +2,7 @@
 // project on the episode row. Never throws — a Submagic failure must not
 // break the YouTube publish flow that calls this.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createMagicClips, getProject, mapWebhookClips } from "@/lib/submagic";
+import { createMagicClips, getProject, mapWebhookClips, parseDictionary } from "@/lib/submagic";
 import { generateReelsMetadata } from "@/lib/reels-metadata";
 
 /** Best-effort: generate yt metadata for clips that just arrived. Never throws. */
@@ -28,7 +28,7 @@ export async function triggerSubmagic(
   try {
     const { data: ep } = await sb
       .from("episodes")
-      .select("title, type, youtube_video_id")
+      .select("title, type, youtube_video_id, channel_id")
       .eq("id", episodeId)
       .single();
     if (!ep?.youtube_video_id) return { ok: false, error: "אין סרטון יוטיוב מפורסם לפרק" };
@@ -43,11 +43,31 @@ export async function triggerSubmagic(
     const title =
       (gens?.[0]?.content as { text?: string } | undefined)?.text || ep.title || "פרק פודקאסט";
 
-    const project = await createMagicClips({
+    const { data: style } = await sb
+      .from("style_profiles")
+      .select("submagic_dictionary")
+      .eq("channel_id", ep.channel_id)
+      .maybeSingle();
+    const dictionary = parseDictionary(style?.submagic_dictionary as string | null);
+
+    const createOpts = {
       title,
       youtubeUrl: `https://www.youtube.com/watch?v=${ep.youtube_video_id}`,
       webhookUrl: webhookUrlFor(origin),
-    });
+    };
+    let project;
+    try {
+      project = await createMagicClips({ ...createOpts, dictionary });
+    } catch (err) {
+      // `dictionary` is documented on regular projects but not explicitly on
+      // magic-clips — if the API rejects it, fall back to a plain create so the
+      // reels still get made.
+      if (dictionary.length && /VALIDATION|dictionary/i.test((err as Error).message)) {
+        project = await createMagicClips(createOpts);
+      } else {
+        throw err;
+      }
+    }
     await sb
       .from("episodes")
       .update({ submagic_project_id: project.id, submagic_status: "processing" })

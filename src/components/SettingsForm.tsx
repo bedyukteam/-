@@ -5,6 +5,7 @@ import type { StyleProfile } from "@/lib/types";
 
 export default function SettingsForm({ initial }: { initial: StyleProfile | null }) {
   const [language, setLanguage] = useState(initial?.language_guidelines ?? "");
+  const [dictionary, setDictionary] = useState(initial?.submagic_dictionary ?? "");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -16,6 +17,7 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         language_guidelines: language,
+        submagic_dictionary: dictionary,
       }),
     });
     setSaving(false);
@@ -35,6 +37,21 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
           rows={7}
+          className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm leading-relaxed"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-semibold">מילון מותג לרילס (Submagic)</span>
+        <span className="text-xs text-muted-foreground">
+          מונחים, שמות ומותגים שחוזרים בפרקים — שורה לכל מונח (או מופרדים בפסיק). עוזר
+          לכתוביות של הרילס לצאת מדויקות כבר מהיצירה. עד 100 מונחים.
+        </span>
+        <textarea
+          value={dictionary}
+          onChange={(e) => setDictionary(e.target.value)}
+          rows={4}
+          placeholder={"בדיוק\nיונה משה-דוד"}
           className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm leading-relaxed"
         />
       </label>

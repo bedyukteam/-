@@ -39,12 +39,14 @@ export default function ReelEditorView({
   initialWords,
   initialHook,
   initialRemoveBadTakes,
+  hookTemplates = [],
   loadError,
 }: {
   clip: ReelEditorClip;
   initialWords: Word[];
-  initialHook: { text?: string } | boolean | null;
+  initialHook: { text?: string; template?: string; top?: number; size?: number } | boolean | null;
   initialRemoveBadTakes: boolean;
+  hookTemplates?: string[];
   loadError: string | null;
 }) {
   const router = useRouter();
@@ -56,10 +58,12 @@ export default function ReelEditorView({
   const [editing, setEditing] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [hookText, setHookText] = useState(
-    typeof initialHook === "object" && initialHook?.text ? initialHook.text : "",
-  );
+  const hookObj = typeof initialHook === "object" && initialHook ? initialHook : null;
+  const [hookText, setHookText] = useState(hookObj?.text ?? "");
   const [hookEnabled, setHookEnabled] = useState(!!initialHook);
+  const [hookTemplate, setHookTemplate] = useState(hookObj?.template ?? "tiktok");
+  const [hookTop, setHookTop] = useState(hookObj?.top ?? 50);
+  const [hookSize, setHookSize] = useState(hookObj?.size ?? 30);
   const [removeBadTakes, setRemoveBadTakes] = useState(initialRemoveBadTakes);
   const [silencePace, setSilencePace] = useState<"" | "natural" | "fast" | "extra-fast">("");
   const [brolls, setBrolls] = useState<AiBroll[]>([]);
@@ -135,7 +139,14 @@ export default function ReelEditorView({
       if (edits.size > 0) {
         payload.words = words.map((w, i) => (edits.has(i) ? { ...w, text: edits.get(i)! } : w));
       }
-      if (hookEnabled && hookText.trim()) payload.hookTitle = { text: hookText.trim().slice(0, 100) };
+      if (hookEnabled && hookText.trim()) {
+        payload.hookTitle = {
+          text: hookText.trim().slice(0, 100),
+          template: hookTemplate,
+          top: hookTop,
+          size: hookSize,
+        };
+      }
       if (removeBadTakes) payload.removeBadTakes = true;
       if (silencePace) payload.removeSilencePace = silencePace;
       if (brolls.length) payload.items = brolls.filter((b) => b.prompt.trim());
@@ -301,7 +312,7 @@ export default function ReelEditorView({
               </div>
             </TabsContent>
 
-            <TabsContent value="hook" className="flex flex-col gap-2 pt-3 text-sm">
+            <TabsContent value="hook" className="flex flex-col gap-3 pt-3 text-sm">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -311,13 +322,62 @@ export default function ReelEditorView({
                 הוספת כותרת פתיחה מונפשת
               </label>
               {hookEnabled && (
-                <input
-                  value={hookText}
-                  maxLength={100}
-                  onChange={(e) => setHookText(e.target.value)}
-                  placeholder="טקסט כותרת הפתיחה"
-                  className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent bg-background"
-                />
+                <>
+                  <input
+                    value={hookText}
+                    maxLength={100}
+                    onChange={(e) => setHookText(e.target.value)}
+                    placeholder="טקסט כותרת הפתיחה"
+                    className="border border-border rounded-lg px-3 py-2 outline-none focus:border-accent bg-background"
+                  />
+                  {hookTemplates.length > 0 && (
+                    <label className="flex flex-col gap-1">
+                      <span>סגנון אנימציה</span>
+                      <select
+                        value={hookTemplate}
+                        onChange={(e) => setHookTemplate(e.target.value)}
+                        className="border border-border rounded-lg px-3 py-2 bg-background w-56"
+                      >
+                        {hookTemplates.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <label className="flex flex-col gap-1">
+                    <span className="flex justify-between w-64">
+                      <span>מיקום אנכי</span>
+                      <span className="text-muted-foreground">{hookTop}</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      value={hookTop}
+                      onChange={(e) => setHookTop(+e.target.value)}
+                      className="w-64 accent-[var(--accent,#F2DA06)]"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      0 = למעלה, 80 = למטה
+                    </span>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="flex justify-between w-64">
+                      <span>גודל טקסט</span>
+                      <span className="text-muted-foreground">{hookSize}</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      value={hookSize}
+                      onChange={(e) => setHookSize(+e.target.value)}
+                      className="w-64 accent-[var(--accent,#F2DA06)]"
+                    />
+                  </label>
+                </>
               )}
             </TabsContent>
 
