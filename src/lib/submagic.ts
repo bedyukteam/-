@@ -112,3 +112,89 @@ export function mapWebhookClips(
     status: c.status ?? null,
   }));
 }
+
+/* ---------------- Reel editing (per-clip projects) ---------------- */
+// Each magic clip is itself an addressable project (verified live 2026-07-20):
+// GET /v1/projects/{clip.id} returns its own words array; PUT updates it and
+// POST /projects/{id}/export re-renders (consumes a Submagic credit).
+
+export interface ProjectWord {
+  id?: string;
+  text: string;
+  type: "word" | "silence" | "punctuation";
+  startTime: number;
+  endTime: number;
+}
+
+export interface HookTitle {
+  text?: string;
+  template?: string;
+  top?: number;
+  size?: number;
+}
+
+export interface ProjectDetail extends MagicClipsProject {
+  words?: ProjectWord[];
+  hookTitle?: HookTitle | boolean;
+  removeBadTakes?: boolean;
+  disableCaptions?: boolean;
+  // present on per-clip projects (top-level video links)
+  downloadUrl?: string;
+  directUrl?: string;
+}
+
+export interface AiBrollItem {
+  type: "ai-broll";
+  startTime: number;
+  endTime: number;
+  prompt: string;
+  layout?: string;
+}
+
+export interface UpdateProjectPayload {
+  words?: ProjectWord[];
+  hookTitle?: HookTitle | boolean;
+  removeSilencePace?: "natural" | "fast" | "extra-fast";
+  removeBadTakes?: boolean;
+  disableCaptions?: boolean;
+  items?: AiBrollItem[];
+}
+
+export async function getProjectDetail(projectId: string): Promise<ProjectDetail> {
+  return (await getProject(projectId)) as ProjectDetail;
+}
+
+export async function updateProject(
+  projectId: string,
+  payload: UpdateProjectPayload,
+): Promise<ProjectDetail> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", "x-api-key": apiKey() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`עדכון הריל ב-Submagic נכשל (${res.status}): ${await res.text()}`);
+  }
+  return (await res.json()) as ProjectDetail;
+}
+
+export async function exportProject(
+  projectId: string,
+  webhookUrl?: string,
+): Promise<{ projectId?: string; status?: string; message?: string }> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/export`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": apiKey() },
+    body: JSON.stringify(webhookUrl ? { webhookUrl } : {}),
+  });
+  if (!res.ok) {
+    throw new Error(`רינדור-מחדש ב-Submagic נכשל (${res.status}): ${await res.text()}`);
+  }
+  return (await res.json()) as { projectId?: string; status?: string; message?: string };
+}
+
+/** Pure: return a new words array with the given index→text edits applied. */
+export function applyWordEdits(words: ProjectWord[], edits: Map<number, string>): ProjectWord[] {
+  return words.map((w, i) => (edits.has(i) ? { ...w, text: edits.get(i)! } : w));
+}

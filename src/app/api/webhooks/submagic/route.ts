@@ -5,7 +5,7 @@
 // only cover authenticated users.
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mapWebhookClips, type MagicClipsWebhookPayload } from "@/lib/submagic";
+import { getProjectDetail, mapWebhookClips, type MagicClipsWebhookPayload } from "@/lib/submagic";
 import { tryGenerateReelsMetadata } from "@/lib/submagic-trigger";
 
 export async function POST(req: Request) {
@@ -29,6 +29,30 @@ export async function POST(req: Request) {
     .eq("submagic_project_id", payload.projectId)
     .maybeSingle();
   if (!ep) {
+    // Not an episode-level Magic Clips project — maybe a per-clip export
+    // finishing (each clip is its own project; see reel edit flow).
+    const { data: clipRow } = await sb
+      .from("submagic_clips")
+      .select("id")
+      .eq("id", payload.projectId)
+      .maybeSingle();
+    if (clipRow) {
+      try {
+        const fresh = await getProjectDetail(clipRow.id as string);
+        await sb
+          .from("submagic_clips")
+          .update({
+            edit_status: payload.status === "completed" ? "exported" : "error",
+            ...(fresh.downloadUrl ? { download_url: fresh.downloadUrl } : {}),
+            ...(fresh.directUrl ? { direct_url: fresh.directUrl } : {}),
+          })
+          .eq("id", clipRow.id);
+      } catch (e) {
+        console.error("[submagic-webhook] clip export refresh failed:", (e as Error).message);
+        await sb.from("submagic_clips").update({ edit_status: "error" }).eq("id", clipRow.id);
+      }
+      return NextResponse.json({ ok: true, clip: clipRow.id });
+    }
     console.error("[submagic-webhook] unknown projectId:", payload.projectId);
     return NextResponse.json({ error: "unknown project" }, { status: 404 });
   }

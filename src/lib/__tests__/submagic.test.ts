@@ -118,3 +118,51 @@ describe("mapWebhookClips", () => {
     expect(mapWebhookClips(failed, "ep")).toEqual([]);
   });
 });
+
+describe("updateProject / exportProject", () => {
+  it("PUTs the payload to /v1/projects/{id} with the api key", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "p1" }), { status: 200 }));
+    const { updateProject } = await import("@/lib/submagic");
+    await updateProject("p1", { removeBadTakes: true });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.submagic.co/v1/projects/p1");
+    expect(init.method).toBe("PUT");
+    expect(init.headers["x-api-key"]).toBe("sk-test-key");
+    expect(JSON.parse(init.body)).toEqual({ removeBadTakes: true });
+  });
+
+  it("POSTs export with webhookUrl and returns the status payload", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ projectId: "p1", status: "exporting" }), { status: 200 }),
+    );
+    const { exportProject } = await import("@/lib/submagic");
+    const res = await exportProject("p1", "https://x/api/webhooks/submagic");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.submagic.co/v1/projects/p1/export");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body).webhookUrl).toBe("https://x/api/webhooks/submagic");
+    expect(res.status).toBe("exporting");
+  });
+
+  it("throws hebrew errors on failure", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("no credits", { status: 402 }));
+    const { exportProject } = await import("@/lib/submagic");
+    await expect(exportProject("p1")).rejects.toThrow(/402/);
+  });
+});
+
+describe("applyWordEdits", () => {
+  it("replaces only edited word texts, preserving order, timing and untouched words", async () => {
+    const { applyWordEdits } = await import("@/lib/submagic");
+    const words = [
+      { id: "w1", text: "שלום", type: "word" as const, startTime: 0, endTime: 0.5 },
+      { id: "w2", text: "עולם", type: "word" as const, startTime: 0.5, endTime: 1 },
+    ];
+    const out = applyWordEdits(words, new Map([[1, "עולמי"]]));
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual(words[0]);
+    expect(out[1].text).toBe("עולמי");
+    expect(out[1].startTime).toBe(0.5);
+    expect(out).not.toBe(words); // no mutation
+  });
+});

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import ReelPublishSheet from "@/components/ReelPublishSheet";
+import ReelEditorSheet from "@/components/ReelEditorSheet";
 
 export interface ClipCardData {
   id: string;
@@ -18,6 +19,7 @@ export interface ClipCardData {
   yt_status?: string | null;
   yt_error?: string | null;
   yt_publish_at?: string | null;
+  edit_status?: string | null;
 }
 
 function fmtDuration(sec: number | null): string {
@@ -80,6 +82,7 @@ export default function ClipCard({
   onChanged?: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const videoSrc = clip.download_url ?? clip.direct_url;
 
   return (
@@ -125,13 +128,25 @@ export default function ClipCard({
         >
           {clip.yt_video_id ? "פרטי פרסום" : "🚀 פרסום ליוטיוב"}
         </button>
+        <button onClick={() => setEditorOpen(true)} className="underline">
+          ✏️ עריכה
+        </button>
         {clip.download_url && (
           <a href={clip.download_url} target="_blank" rel="noreferrer" className="underline">
             ⬇️ הורדה
           </a>
         )}
+        {clip.edit_status === "exporting" && (
+          <span className="text-xs text-muted-foreground">מרנדר מחדש…</span>
+        )}
       </div>
 
+      <ReelEditorSheet
+        clip={clip}
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        onChanged={onChanged}
+      />
       <ReelPublishSheet
         clip={clip}
         episodeId={episodeId}
