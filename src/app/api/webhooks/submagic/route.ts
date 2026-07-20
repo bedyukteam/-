@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapWebhookClips, type MagicClipsWebhookPayload } from "@/lib/submagic";
+import { tryGenerateReelsMetadata } from "@/lib/submagic-trigger";
 
 export async function POST(req: Request) {
   const sb = createAdminClient();
@@ -44,6 +45,10 @@ export async function POST(req: Request) {
     .from("episodes")
     .update({ submagic_status: payload.status === "completed" ? "ready" : "error" })
     .eq("id", ep.id);
+
+  if (payload.status === "completed" && rows.length) {
+    await tryGenerateReelsMetadata(sb, ep.id as string);
+  }
 
   return NextResponse.json({ ok: true, clips: rows.length });
 }

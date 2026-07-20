@@ -237,3 +237,42 @@ export function buildThumbnailImagePrompt(
     (overlayText ? `Concept headline (do not necessarily render text): "${overlayText}".` : "")
   );
 }
+
+/**
+ * Batch metadata for Submagic reels: one call produces a YouTube Shorts title
+ * + description for every clip of an episode. Submagic's own clip titles and
+ * the episode transcript anchor the model; results map back by clip id.
+ */
+export function buildReelsMetadataPrompt(
+  clips: { id: string; title: string | null; durationSec: number | null }[],
+  transcript: string,
+  ctx: StyleContext,
+) {
+  const system =
+    BASE_SYSTEM +
+    guidelinesBlock(ctx.languageGuidelines, "שפה") +
+    examplesBlock(ctx.examples.title, "כותרות");
+  const clipList = clips
+    .map(
+      (c, i) =>
+        `${i + 1}. id: "${c.id}" | כותרת מ-Submagic: "${c.title ?? ""}" | אורך: ${
+          c.durationSec != null ? Math.round(c.durationSec) : "?"
+        } שניות`,
+    )
+    .join("\n");
+  const user =
+    `לפניך רשימת רילס (קטעים קצרים) שנחתכו מפרק פודקאסט, עם הכותרת שנתן להם כלי-החיתוך, ` +
+    `ותמלול הפרק המלא כהקשר. לכל ריל כתוב/י כותרת ותיאור לפרסום כ-YouTube Short.\n\n` +
+    `דרישות:\n` +
+    `- כותרת: עד 50 תווים, בסגנון הוק שעוצר גלילה, בלי האשטגים ובלי המילה Shorts.\n` +
+    `- תיאור: מחרוזת אחת בת 4 שורות מופרדות ב-\\n — ` +
+    `שורה 1 משפט פתיחה מסקרן; שורה 2 חידוד הערך; ` +
+    `שורה 3 הנעה-לפעולה בלשון רבים לתוכן נוסף בערוץ; ` +
+    `שורה 4 האשטגים בלבד: 2-3 בעברית ואז #Shorts אחרון.\n` +
+    `- החזר/י ערך לכל ריל ברשימה, עם ה-id המקורי שלו בדיוק.\n\n` +
+    `החזר/י JSON יחיד בלבד במבנה:\n` +
+    `{"reels": [{"id": "...", "title": "...", "description": "..."}, ...]}\n\n` +
+    `### הרילס:\n${clipList}\n\n` +
+    `### תמלול הפרק:\n${clip(transcript)}`;
+  return { system, user };
+}

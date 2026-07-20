@@ -74,16 +74,6 @@ export default function ClipCard({
             ⬇️ הורדה
           </a>
         )}
-        {clip.direct_url && (
-          <a
-            href={clip.direct_url}
-            target="_blank"
-            rel="noreferrer"
-            className="underline text-muted-foreground"
-          >
-            פתיחה ב-Submagic
-          </a>
-        )}
       </div>
     </li>
   );

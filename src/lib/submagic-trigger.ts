@@ -3,6 +3,16 @@
 // break the YouTube publish flow that calls this.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createMagicClips, getProject, mapWebhookClips } from "@/lib/submagic";
+import { generateReelsMetadata } from "@/lib/reels-metadata";
+
+/** Best-effort: generate yt metadata for clips that just arrived. Never throws. */
+export async function tryGenerateReelsMetadata(sb: SupabaseClient, episodeId: string) {
+  try {
+    await generateReelsMetadata(sb, episodeId);
+  } catch (e) {
+    console.error("[reels-metadata] generation failed:", (e as Error).message);
+  }
+}
 
 /** Public origins only — Submagic can't reach localhost, so we rely on polling there. */
 function webhookUrlFor(origin: string): string | undefined {
@@ -72,5 +82,6 @@ export async function refreshSubmagic(
   const status =
     project.status === "completed" ? "ready" : project.status === "failed" ? "error" : "processing";
   await sb.from("episodes").update({ submagic_status: status }).eq("id", episodeId);
+  if (status === "ready" && rows.length) await tryGenerateReelsMetadata(sb, episodeId);
   return { status, clips: rows.length };
 }
