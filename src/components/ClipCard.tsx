@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import ReelPublishSheet from "@/components/ReelPublishSheet";
-import ReelEditorSheet from "@/components/ReelEditorSheet";
 
 export interface ClipCardData {
   id: string;
@@ -82,7 +81,6 @@ export default function ClipCard({
   onChanged?: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
   const videoSrc = clip.download_url ?? clip.direct_url;
 
   return (
@@ -128,9 +126,9 @@ export default function ClipCard({
         >
           {clip.yt_video_id ? "פרטי פרסום" : "🚀 פרסום ליוטיוב"}
         </button>
-        <button onClick={() => setEditorOpen(true)} className="underline">
+        <Link href={`/reels/${clip.id}`} className="underline">
           ✏️ עריכה
-        </button>
+        </Link>
         {clip.download_url && (
           <a href={clip.download_url} target="_blank" rel="noreferrer" className="underline">
             ⬇️ הורדה
@@ -141,12 +139,6 @@ export default function ClipCard({
         )}
       </div>
 
-      <ReelEditorSheet
-        clip={clip}
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        onChanged={onChanged}
-      />
       <ReelPublishSheet
         clip={clip}
         episodeId={episodeId}
