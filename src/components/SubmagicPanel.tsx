@@ -2,22 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import ClipCard, { type ClipCardData } from "@/components/ClipCard";
 
-interface ClipRow {
-  id: string;
-  title: string | null;
-  duration_sec: number | null;
-  virality_total: number | null;
-  preview_url: string | null;
-  download_url: string | null;
-  direct_url: string | null;
+interface ClipRow extends ClipCardData {
   status: string | null;
-}
-
-function fmtDuration(sec: number | null): string {
-  if (sec == null) return "";
-  const s = Math.round(sec);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -115,39 +103,9 @@ export default function SubmagicPanel({
       {msg && <p className="text-sm text-danger mt-3">{msg}</p>}
 
       {clips.length > 0 && (
-        <ul className="grid gap-3 mt-4 sm:grid-cols-2">
+        <ul className="grid gap-3 mt-4 sm:grid-cols-2 items-start">
           {clips.map((c) => (
-            <li key={c.id} className="border border-border rounded-xl p-4 flex flex-col gap-2">
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-medium text-sm">{c.title ?? "קליפ"}</span>
-                {c.virality_total != null && (
-                  <span
-                    className="shrink-0 text-xs font-bold rounded-full px-2 py-1 bg-accent/20"
-                    title="ציון ויראליות"
-                  >
-                    🔥 {Math.round(c.virality_total)}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs text-muted">{fmtDuration(c.duration_sec)}</span>
-              <div className="flex gap-3 text-sm mt-1">
-                {(c.preview_url || c.direct_url) && (
-                  <a
-                    href={c.preview_url ?? c.direct_url ?? "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    צפייה
-                  </a>
-                )}
-                {c.download_url && (
-                  <a href={c.download_url} target="_blank" rel="noreferrer" className="underline">
-                    ⬇️ הורדה
-                  </a>
-                )}
-              </div>
-            </li>
+            <ClipCard key={c.id} clip={c} />
           ))}
         </ul>
       )}
