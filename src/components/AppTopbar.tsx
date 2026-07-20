@@ -17,6 +17,7 @@ import SettingsDrawer from "@/components/SettingsDrawer";
 function sectionTitle(pathname: string): string {
   if (pathname.startsWith("/episodes")) return "פרק";
   if (pathname.startsWith("/ideas")) return "רעיונות לתוכן";
+  if (pathname.startsWith("/reels")) return "רילס";
   if (pathname.startsWith("/analytics/video")) return "אנליטיקס · סרטון";
   if (pathname.startsWith("/analytics")) return "אנליטיקס";
   if (pathname.startsWith("/settings")) return "הנחיות סגנון";

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import CoverStudio from "@/components/CoverStudio";
 import { KIND_LABELS, KIND_ORDER, STAGE_LABELS, isPublishReady, requiredKindsFor } from "@/lib/constants";
 import PublishPanel from "@/components/PublishPanel";
+import SubmagicPanel from "@/components/SubmagicPanel";
 import type { Generation, GenerationKind, Job, JobStage, Transcript } from "@/lib/types";
 
 const TERMINAL = new Set(["ready"]);
@@ -245,6 +246,11 @@ export default function EpisodeView({
           totalBytes={videoSize ?? 0}
           onChange={load}
         />
+      )}
+
+      {/* Reels are cut from full episodes only — shorts ARE the short-form content. */}
+      {episodeType !== "short" && (
+        <SubmagicPanel episodeId={episodeId} youtubeVideoId={youtubeVideoId} supabase={supabase} />
       )}
 
       {/* Shorts don't use a custom thumbnail — the cover/Canva panels are podcast-only. */}
