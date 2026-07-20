@@ -41,7 +41,7 @@ export default async function ReelsPage() {
           פורסם) — והם יופיעו כאן ✨
         </div>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-start">
+        <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-start">
           {rows.map((c) => (
             <ClipCard
               key={c.id}
