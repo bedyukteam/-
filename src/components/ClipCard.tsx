@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import ReelPublishSheet from "@/components/ReelPublishSheet";
 
 export interface ClipCardData {
   id: string;
@@ -10,6 +12,12 @@ export interface ClipCardData {
   preview_url: string | null;
   download_url: string | null;
   direct_url: string | null;
+  yt_title?: string | null;
+  yt_description?: string | null;
+  yt_video_id?: string | null;
+  yt_status?: string | null;
+  yt_error?: string | null;
+  yt_publish_at?: string | null;
 }
 
 function fmtDuration(sec: number | null): string {
@@ -18,21 +26,60 @@ function fmtDuration(sec: number | null): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+function YtBadge({ clip }: { clip: ClipCardData }) {
+  if (clip.yt_status === "published")
+    return (
+      <a
+        href={`https://youtube.com/shorts/${clip.yt_video_id}`}
+        target="_blank"
+        rel="noreferrer"
+        className="text-xs font-medium rounded-full px-2 py-1 bg-green-600/15 text-green-700 underline"
+      >
+        פורסם ביוטיוב ✓
+      </a>
+    );
+  if (clip.yt_status === "scheduled")
+    return (
+      <span
+        className="text-xs font-medium rounded-full px-2 py-1 bg-accent/20"
+        title={clip.yt_publish_at ?? undefined}
+      >
+        מתוזמן 🕒
+      </span>
+    );
+  if (clip.yt_status === "uploading")
+    return <span className="text-xs font-medium rounded-full px-2 py-1 bg-accent/20">מעלה…</span>;
+  if (clip.yt_status === "error")
+    return (
+      <span
+        className="text-xs font-medium rounded-full px-2 py-1 bg-red-600/15 text-danger"
+        title={clip.yt_error ?? undefined}
+      >
+        שגיאת פרסום
+      </span>
+    );
+  return null;
+}
+
 /**
  * One reel card, shared by the episode panel and the /reels inbox.
- * The player is always visible — press play on any clip to watch it here.
- * preload="metadata" keeps the grid light: only the first frame + duration
- * load until a clip is actually played (download_url serves a direct mp4).
+ * The player is always visible — press play to watch; the publish button opens
+ * the metadata+publish drawer (ReelPublishSheet).
  */
 export default function ClipCard({
   clip,
+  episodeId,
   episodeHref,
   episodeTitle,
+  onChanged,
 }: {
   clip: ClipCardData;
+  episodeId?: string;
   episodeHref?: string;
   episodeTitle?: string;
+  onChanged?: () => void;
 }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
   const videoSrc = clip.download_url ?? clip.direct_url;
 
   return (
@@ -54,7 +101,10 @@ export default function ClipCard({
           מתוך: {episodeTitle ?? "פרק"}
         </Link>
       )}
-      <span className="text-xs text-muted-foreground">{fmtDuration(clip.duration_sec)}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{fmtDuration(clip.duration_sec)}</span>
+        <YtBadge clip={clip} />
+      </div>
 
       {videoSrc && (
         <video
@@ -68,13 +118,27 @@ export default function ClipCard({
         />
       )}
 
-      <div className="flex gap-3 text-sm mt-auto pt-2">
+      <div className="flex items-center gap-3 text-sm mt-auto pt-2 flex-wrap">
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="bg-accent text-accent-foreground rounded-lg px-3 py-1.5 text-sm font-semibold hover:opacity-90"
+        >
+          {clip.yt_video_id ? "פרטי פרסום" : "🚀 פרסום ליוטיוב"}
+        </button>
         {clip.download_url && (
           <a href={clip.download_url} target="_blank" rel="noreferrer" className="underline">
             ⬇️ הורדה
           </a>
         )}
       </div>
+
+      <ReelPublishSheet
+        clip={clip}
+        episodeId={episodeId}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onChanged={onChanged}
+      />
     </li>
   );
 }

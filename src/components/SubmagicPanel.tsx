@@ -115,7 +115,7 @@ export default function SubmagicPanel({
       {clips.length > 0 && (
         <ul className="grid gap-3 mt-4 sm:grid-cols-2 items-start">
           {clips.map((c) => (
-            <ClipCard key={c.id} clip={c} />
+            <ClipCard key={c.id} clip={c} episodeId={episodeId} onChanged={load} />
           ))}
         </ul>
       )}

@@ -31,8 +31,8 @@ export default async function ReelsPage() {
   return (
     <div>
       <p className="text-muted-foreground text-sm mb-6">
-        כל הרילס ש-Submagic יצר מהפרקים שלך — מהחדש לישן. צפייה מתנגנת כאן בפנים; הפרסום
-        לרשתות נעשה ידנית (הורדה ← העלאה).
+        כל הרילס ש-Submagic יצר מהפרקים שלך — מהחדש לישן. צפייה מתנגנת כאן בפנים, ופרסום
+        ליוטיוב כשורט — בלחיצה על &quot;🚀 פרסום ליוטיוב&quot; (כולל עריכת כותרת/תיאור ותזמון).
       </p>
 
       {rows.length === 0 ? (
@@ -46,6 +46,7 @@ export default async function ReelsPage() {
             <ClipCard
               key={c.id}
               clip={c}
+              episodeId={c.episode_id}
               episodeHref={`/episodes/${c.episode_id}`}
               episodeTitle={episodeTitle.get(c.episode_id)}
             />
