@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/youtube-token";
 import { getRange, deleteObject } from "@/lib/r2";
 import { buildVideoResource, nextChunkRange, parseRangeEnd } from "@/lib/youtube";
+import { triggerSubmagic } from "@/lib/submagic-trigger";
 
 const UPLOAD_INIT_URL =
   "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status";
@@ -174,6 +175,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         })
         .eq("id", id);
       await deleteObject(ep.video_key as string); // publish succeeded — free the R2 slot
+      // Immediate publishes kick off Submagic reels right away. Scheduled ones
+      // wait — the video isn't publicly watchable until its publish time — and
+      // are covered by the manual "צור רילס" trigger. triggerSubmagic never throws.
+      if (!publishAt) {
+        await triggerSubmagic(supabase, id, new URL(req.url).origin);
+      }
       return NextResponse.json({ done: true, videoId: video.id, uploadedBytes: totalBytes, totalBytes });
     }
 

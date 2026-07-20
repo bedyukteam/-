@@ -30,7 +30,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth");
+  // /api/webhooks/* are machine-to-machine callbacks (e.g. Submagic) — no user
+  // session; each webhook route authenticates its own payload.
+  const isPublic =
+    path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/api/webhooks/");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
