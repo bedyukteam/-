@@ -110,10 +110,11 @@ describe("mapWebhookClips", () => {
       direct_url: "https://x/1",
       status: "completed",
     });
-    expect(rows[0].virality).toEqual(payload.magicClips[0].viralityScores);
+    expect(rows[0].virality).toEqual(payload.magicClips![0].viralityScores);
   });
 
   it("returns [] when magicClips is missing (failed project)", () => {
-    expect(mapWebhookClips({ projectId: "p", status: "failed" }, "ep")).toEqual([]);
+    const failed: MagicClipsWebhookPayload = { projectId: "p", status: "failed" };
+    expect(mapWebhookClips(failed, "ep")).toEqual([]);
   });
 });
