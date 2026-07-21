@@ -2,7 +2,13 @@
 // project on the episode row. Never throws — a Submagic failure must not
 // break the YouTube publish flow that calls this.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createMagicClips, getProject, mapWebhookClips, parseDictionary } from "@/lib/submagic";
+import {
+  createMagicClips,
+  getProject,
+  mapWebhookClips,
+  parseDictionary,
+  topClipsByVirality,
+} from "@/lib/submagic";
 import { generateReelsMetadata } from "@/lib/reels-metadata";
 
 /** Best-effort: generate yt metadata for clips that just arrived. Never throws. */
@@ -108,7 +114,7 @@ export async function refreshSubmagic(
   if (!ep?.submagic_project_id) return { status: "none", clips: 0 };
 
   const project = await getProject(ep.submagic_project_id);
-  const rows = mapWebhookClips({ magicClips: project.magicClips }, episodeId);
+  const rows = topClipsByVirality(mapWebhookClips({ magicClips: project.magicClips }, episodeId));
   if (rows.length) {
     const { error } = await sb.from("submagic_clips").upsert(rows, { onConflict: "id" });
     if (error) throw new Error("שמירת הקליפים נכשלה: " + error.message);

@@ -249,3 +249,16 @@ export async function listTemplates(): Promise<string[]> {
   const data = (await res.json()) as { templates?: string[] };
   return data.templates ?? [];
 }
+
+/**
+ * How many reels enter the inbox per episode — Submagic's AI decides how many
+ * clips to cut (not controllable via API), so we keep only the strongest ones.
+ */
+export const REELS_KEEP_TOP = 10;
+
+/** Pure: the N clips with the highest virality score (null scores sort last). */
+export function topClipsByVirality(rows: SubmagicClipRow[], n = REELS_KEEP_TOP): SubmagicClipRow[] {
+  return [...rows]
+    .sort((a, b) => (b.virality_total ?? 0) - (a.virality_total ?? 0))
+    .slice(0, n);
+}

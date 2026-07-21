@@ -262,3 +262,36 @@ describe("listTemplates", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.submagic.co/v1/templates");
   });
 });
+
+describe("topClipsByVirality", () => {
+  it("keeps only the N highest-scored clips, preserving ties deterministically", async () => {
+    const { topClipsByVirality } = await import("@/lib/submagic");
+    const rows = Array.from({ length: 31 }, (_, i) => ({
+      id: "c" + i,
+      episode_id: "ep",
+      title: null,
+      duration_sec: null,
+      virality_total: i, // 0..30
+      virality: null,
+      preview_url: null,
+      download_url: null,
+      direct_url: null,
+      status: null,
+    }));
+    const top = topClipsByVirality(rows, 10);
+    expect(top).toHaveLength(10);
+    expect(top[0].virality_total).toBe(30);
+    expect(top.every((r) => (r.virality_total ?? 0) >= 21)).toBe(true);
+  });
+
+  it("returns everything when fewer than N and treats null score as 0", async () => {
+    const { topClipsByVirality } = await import("@/lib/submagic");
+    const rows = [
+      { id: "a", virality_total: null },
+      { id: "b", virality_total: 50 },
+    ] as never[];
+    const top = topClipsByVirality(rows, 10);
+    expect(top).toHaveLength(2);
+    expect(top[0]).toMatchObject({ id: "b" });
+  });
+});

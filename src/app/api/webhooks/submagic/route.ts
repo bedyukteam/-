@@ -5,7 +5,12 @@
 // only cover authenticated users.
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getProjectDetail, mapWebhookClips, type MagicClipsWebhookPayload } from "@/lib/submagic";
+import {
+  getProjectDetail,
+  mapWebhookClips,
+  topClipsByVirality,
+  type MagicClipsWebhookPayload,
+} from "@/lib/submagic";
 import { tryGenerateReelsMetadata } from "@/lib/submagic-trigger";
 
 export async function POST(req: Request) {
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unknown project" }, { status: 404 });
   }
 
-  const rows = mapWebhookClips(payload, ep.id as string);
+  const rows = topClipsByVirality(mapWebhookClips(payload, ep.id as string));
   if (rows.length) {
     const { error } = await sb.from("submagic_clips").upsert(rows, { onConflict: "id" });
     if (error) {
