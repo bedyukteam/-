@@ -24,6 +24,7 @@ export async function triggerSubmagic(
   sb: SupabaseClient,
   episodeId: string,
   origin: string,
+  opts: { recreate?: boolean } = {},
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const { data: ep } = await sb
@@ -45,15 +46,28 @@ export async function triggerSubmagic(
 
     const { data: style } = await sb
       .from("style_profiles")
-      .select("submagic_dictionary")
+      .select("submagic_dictionary, submagic_template, submagic_theme_id")
       .eq("channel_id", ep.channel_id)
       .maybeSingle();
     const dictionary = parseDictionary(style?.submagic_dictionary as string | null);
+
+    // Re-styling an episode = a fresh Magic Clips project. Old clips that were
+    // never published are replaced; published ones keep their history.
+    if (opts.recreate) {
+      const { error: delErr } = await sb
+        .from("submagic_clips")
+        .delete()
+        .eq("episode_id", episodeId)
+        .is("yt_video_id", null);
+      if (delErr) return { ok: false, error: "מחיקת הרילס הישנים נכשלה: " + delErr.message };
+    }
 
     const createOpts = {
       title,
       youtubeUrl: `https://www.youtube.com/watch?v=${ep.youtube_video_id}`,
       webhookUrl: webhookUrlFor(origin),
+      templateName: (style?.submagic_template as string | null) ?? undefined,
+      userThemeId: (style?.submagic_theme_id as string | null) ?? undefined,
     };
     let project;
     try {

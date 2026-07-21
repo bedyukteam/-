@@ -244,6 +244,11 @@ export default function ReelEditorView({
                 המילה המושמעת מודגשת בזמן הניגון. לחיצה על מילה קופצת אליה בסרטון ופותחת אותה
                 לעריכה. {edits.size > 0 && <b>{edits.size} מילים שונו.</b>}
               </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                💡 גודל/פונט/מיקום הכתוביות נקבעים ב&quot;סגנון כתוביות לרילס&quot; שבהגדרות
+                ומוחלים ביצירה. כדי להחיל סגנון חדש על פרק זה — &quot;🎨 צור מחדש בסגנון
+                החדש&quot; בעמוד הפרק.
+              </p>
               <div className="flex flex-col gap-2 max-h-[62vh] overflow-y-auto pr-1">
                 {segments.length === 0 && (
                   <p className="text-sm text-muted-foreground">אין כתוביות לקליפ הזה.</p>

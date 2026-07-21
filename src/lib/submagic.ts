@@ -53,7 +53,13 @@ export async function createMagicClips(opts: {
   minClipLength?: number;
   maxClipLength?: number;
   dictionary?: string[];
+  /** Built-in caption style; ignored when userThemeId is set (API forbids both). */
+  templateName?: string;
+  /** The user's custom caption theme (font/size/position designed in Submagic's editor). */
+  userThemeId?: string;
 }): Promise<MagicClipsProject> {
+  const theme = opts.userThemeId?.trim();
+  const template = opts.templateName?.trim();
   const res = await fetch(`${API_BASE}/projects/magic-clips`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": apiKey() },
@@ -65,6 +71,7 @@ export async function createMagicClips(opts: {
       ...(opts.minClipLength ? { minClipLength: opts.minClipLength } : {}),
       ...(opts.maxClipLength ? { maxClipLength: opts.maxClipLength } : {}),
       ...(opts.dictionary && opts.dictionary.length ? { dictionary: opts.dictionary } : {}),
+      ...(theme ? { userThemeId: theme } : template ? { templateName: template } : {}),
     }),
   });
   if (!res.ok) {
@@ -226,6 +233,18 @@ export async function listHookTitleTemplates(): Promise<string[]> {
   });
   if (!res.ok) {
     throw new Error(`שליפת תבניות-הוק נכשלה (${res.status}): ${await res.text()}`);
+  }
+  const data = (await res.json()) as { templates?: string[] };
+  return data.templates ?? [];
+}
+
+/** Built-in caption style templates (e.g. "Sara", "Hormozi 2"). */
+export async function listTemplates(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/templates`, {
+    headers: { "x-api-key": apiKey() },
+  });
+  if (!res.ok) {
+    throw new Error(`שליפת תבניות-כתוביות נכשלה (${res.status}): ${await res.text()}`);
   }
   const data = (await res.json()) as { templates?: string[] };
   return data.templates ?? [];

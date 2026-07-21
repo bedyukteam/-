@@ -216,3 +216,49 @@ describe("listHookTitleTemplates", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.submagic.co/v1/hook-title/templates");
   });
 });
+
+describe("caption styling at creation", () => {
+  it("sends userThemeId and NOT templateName when both are provided (theme wins)", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "p" }), { status: 202 }));
+    const { createMagicClips } = await import("@/lib/submagic");
+    await createMagicClips({
+      title: "t",
+      youtubeUrl: "https://youtu.be/x",
+      templateName: "Hormozi 2",
+      userThemeId: "11111111-2222-3333-4444-555555555555",
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.userThemeId).toBe("11111111-2222-3333-4444-555555555555");
+    expect("templateName" in body).toBe(false);
+  });
+
+  it("sends templateName alone when no theme is set", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "p" }), { status: 202 }));
+    const { createMagicClips } = await import("@/lib/submagic");
+    await createMagicClips({ title: "t", youtubeUrl: "https://youtu.be/x", templateName: "Sara" });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.templateName).toBe("Sara");
+    expect("userThemeId" in body).toBe(false);
+  });
+
+  it("sends neither when both are empty", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "p" }), { status: 202 }));
+    const { createMagicClips } = await import("@/lib/submagic");
+    await createMagicClips({ title: "t", youtubeUrl: "https://youtu.be/x", templateName: "" });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect("templateName" in body).toBe(false);
+    expect("userThemeId" in body).toBe(false);
+  });
+});
+
+describe("listTemplates", () => {
+  it("GETs the caption templates list", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ templates: ["Sara", "Hormozi 2"] }), { status: 200 }),
+    );
+    const { listTemplates } = await import("@/lib/submagic");
+    const t = await listTemplates();
+    expect(t).toEqual(["Sara", "Hormozi 2"]);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.submagic.co/v1/templates");
+  });
+});

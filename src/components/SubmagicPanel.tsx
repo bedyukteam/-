@@ -50,11 +50,16 @@ export default function SubmagicPanel({
     void load();
   }, [load]);
 
-  async function callApi(path: string) {
+  async function callApi(path: string, payload?: Record<string, unknown>) {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch(path, { method: "POST" });
+      const res = await fetch(path, {
+        method: "POST",
+        ...(payload
+          ? { headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }
+          : {}),
+      });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) setMsg(body.error ?? `שגיאה (${res.status})`);
       await load();
@@ -96,6 +101,27 @@ export default function SubmagicPanel({
               className="border border-border rounded-lg px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-50"
             >
               ✨ צור כותרות ותיאורים
+            </button>
+          )}
+          {clips.length > 0 && (
+            <button
+              onClick={() => {
+                if (
+                  confirm(
+                    "ליצור מחדש את הרילס של הפרק בסגנון הכתוביות שבהגדרות?\n\n" +
+                      "• רילס שלא פורסמו יימחקו ויוחלפו בסט חדש מעוצב\n" +
+                      "• רילס שכבר פורסמו ליוטיוב יישמרו\n" +
+                      "• הפעולה צורכת קרדיט Magic Clips אחד",
+                  )
+                ) {
+                  void callApi(`/api/episodes/${episodeId}/submagic`, { recreate: true });
+                }
+              }}
+              disabled={busy}
+              title="יצירת סט רילס חדש עם סגנון הכתוביות מההגדרות"
+              className="border border-border rounded-lg px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-50"
+            >
+              🎨 צור מחדש בסגנון החדש
             </button>
           )}
         </div>

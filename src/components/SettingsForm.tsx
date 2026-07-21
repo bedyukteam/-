@@ -3,9 +3,17 @@
 import { useState } from "react";
 import type { StyleProfile } from "@/lib/types";
 
-export default function SettingsForm({ initial }: { initial: StyleProfile | null }) {
+export default function SettingsForm({
+  initial,
+  captionTemplates = [],
+}: {
+  initial: StyleProfile | null;
+  captionTemplates?: string[];
+}) {
   const [language, setLanguage] = useState(initial?.language_guidelines ?? "");
   const [dictionary, setDictionary] = useState(initial?.submagic_dictionary ?? "");
+  const [template, setTemplate] = useState(initial?.submagic_template ?? "");
+  const [themeId, setThemeId] = useState(initial?.submagic_theme_id ?? "");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -18,6 +26,8 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
       body: JSON.stringify({
         language_guidelines: language,
         submagic_dictionary: dictionary,
+        submagic_template: template,
+        submagic_theme_id: themeId.trim(),
       }),
     });
     setSaving(false);
@@ -55,6 +65,40 @@ export default function SettingsForm({ initial }: { initial: StyleProfile | null
           className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm leading-relaxed"
         />
       </label>
+
+      <div className="flex flex-col gap-1.5 text-sm">
+        <span className="font-semibold">סגנון כתוביות לרילס</span>
+        <span className="text-xs text-muted-foreground">
+          קובע את הפונט, הגודל והמיקום של הכתוביות הצרובות — מוחל על כל הרילס שייווצרו
+          מעכשיו. לשליטה מלאה: עצבי ערכה משלך בעורך Submagic (פרויקט ← Theme ← שמירה ←
+          אייקון עיפרון מציג את ה-ID) והדביקי את ה-ID — הערכה שלך גוברת על התבנית.
+        </span>
+        <label className="flex flex-col gap-1 mt-1">
+          <span className="text-xs font-medium">תבנית מובנית של Submagic</span>
+          <select
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm bg-transparent"
+          >
+            <option value="">ברירת מחדל (Sara)</option>
+            {captionTemplates.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 mt-1">
+          <span className="text-xs font-medium">Theme ID מותאם אישית (לא חובה)</span>
+          <input
+            value={themeId}
+            onChange={(e) => setThemeId(e.target.value)}
+            dir="ltr"
+            placeholder="למשל: 749a19fs-4b45-4b14-bd31-a3970a1a5ff2"
+            className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm"
+          />
+        </label>
+      </div>
 
       <div className="flex items-center gap-3">
         <button

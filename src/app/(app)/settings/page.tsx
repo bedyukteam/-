@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import SettingsForm from "@/components/SettingsForm";
+import { listTemplates } from "@/lib/submagic";
 import { KIND_LABELS } from "@/lib/constants";
 import type { GenerationKind, StyleExample, StyleProfile } from "@/lib/types";
 
@@ -22,6 +23,13 @@ export default async function SettingsPage() {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  let captionTemplates: string[] = [];
+  try {
+    captionTemplates = await listTemplates();
+  } catch {
+    // non-fatal — the style select just shows the default option
+  }
+
   const grouped: Record<string, StyleExample[]> = {};
   for (const ex of (examples ?? []) as StyleExample[]) {
     (grouped[ex.kind] ??= []).push(ex);
@@ -36,6 +44,7 @@ export default async function SettingsPage() {
         </p>
         <SettingsForm
           initial={(profile as StyleProfile) ?? null}
+          captionTemplates={captionTemplates}
         />
       </div>
 

@@ -12,7 +12,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const res = await triggerSubmagic(supabase, id, new URL(req.url).origin);
+  const { recreate } = (await req.json().catch(() => ({}))) as { recreate?: boolean };
+
+  const res = await triggerSubmagic(supabase, id, new URL(req.url).origin, { recreate });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

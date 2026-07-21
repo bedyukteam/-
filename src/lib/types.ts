@@ -29,6 +29,8 @@ export interface StyleProfile {
   visual_guidelines: string;
   canva_covers_url: string;
   submagic_dictionary?: string | null;
+  submagic_template?: string | null;
+  submagic_theme_id?: string | null;
   updated_at: string;
 }
 

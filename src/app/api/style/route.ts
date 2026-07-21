@@ -9,11 +9,14 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { language_guidelines, canva_covers_url, submagic_dictionary } = (await req.json()) as {
-    language_guidelines: string;
-    canva_covers_url?: string;
-    submagic_dictionary?: string;
-  };
+  const { language_guidelines, canva_covers_url, submagic_dictionary, submagic_template, submagic_theme_id } =
+    (await req.json()) as {
+      language_guidelines: string;
+      canva_covers_url?: string;
+      submagic_dictionary?: string;
+      submagic_template?: string;
+      submagic_theme_id?: string;
+    };
   const channelId = process.env.NEXT_PUBLIC_DEFAULT_CHANNEL_ID!;
 
   const { error } = await supabase
@@ -24,6 +27,8 @@ export async function POST(req: Request) {
       // screen no longer edits it; the episode-page fallback still reads it).
       ...(canva_covers_url !== undefined ? { canva_covers_url } : {}),
       ...(submagic_dictionary !== undefined ? { submagic_dictionary } : {}),
+      ...(submagic_template !== undefined ? { submagic_template } : {}),
+      ...(submagic_theme_id !== undefined ? { submagic_theme_id } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("channel_id", channelId);
