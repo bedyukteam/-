@@ -14,6 +14,9 @@ import DisabledCard from "@/components/analytics/DisabledCard";
 import { useReports } from "@/components/analytics/useReports";
 import { CHART, fmtDateShort, fmtDuration, fmtHours, fmtNum } from "@/components/analytics/format";
 import { cumulative } from "@/lib/youtube-analytics";
+import { isShortDuration } from "@/lib/youtube-channel";
+
+type ReportRow = (string | number)[];
 import {
   DEVICE_LABELS,
   GENDER_LABELS,
@@ -135,49 +138,63 @@ function OverviewTab({ period }: { period: Period }) {
         />
       </section>
 
-      <section className="bg-card border border-border rounded-2xl p-5">
-        <h3 className="font-bold text-sm mb-3">התוכן המוביל שלך במהלך התקופה הזו</h3>
-        {top.length === 0 ? (
-          <p className="text-xs text-muted-foreground">אין נתוני תוכן לתקופה הזו.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-muted-foreground text-right">
-                  <th className="py-1.5 font-medium">תוכן</th>
-                  <th className="py-1.5 font-medium">משך צפייה ממוצע</th>
-                  <th className="py-1.5 font-medium">צפיות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {top.map((r) => {
-                  const id = String(r[0]);
-                  const m = meta[id];
-                  return (
-                    <tr key={id} className="border-t border-border">
-                      <td className="py-2 pl-3">
-                        <a href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-primary">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="w-20 h-11 object-cover rounded-md shrink-0" />
-                          <span className="min-w-0">
-                            <span className="line-clamp-2">{m?.title ?? id}</span>
-                            {m?.publishedAt && <span className="block text-xs text-muted-foreground">{fmtDateShort(m.publishedAt)}</span>}
-                          </span>
-                        </a>
-                      </td>
-                      <td className="py-2 whitespace-nowrap">
-                        {fmtDuration(Number(r[4] ?? 0))}{" "}
-                        <span className="text-muted-foreground text-xs">({Number(r[5] ?? 0).toFixed(1)}%)</span>
-                      </td>
-                      <td className="py-2 font-semibold">{fmtNum(Number(r[1] ?? 0))}</td>
+      {(() => {
+        // Newest-first, split into podcast episodes vs shorts (user request):
+        // the raw report is ordered by views, which reads as a jumbled date list.
+        const byDateDesc = (a: ReportRow, b: ReportRow) =>
+          (meta[String(b[0])]?.publishedAt ?? "").localeCompare(meta[String(a[0])]?.publishedAt ?? "");
+        const episodes = top.filter((r) => !isShortDuration(meta[String(r[0])]?.durationSec ?? 0)).sort(byDateDesc);
+        const shorts = top.filter((r) => isShortDuration(meta[String(r[0])]?.durationSec ?? 0)).sort(byDateDesc);
+        const sections: { title: string; rows: ReportRow[] }[] = [
+          { title: "פרקי פודקאסט — מהחדש לישן", rows: episodes },
+          { title: "שורטס — מהחדש לישן", rows: shorts },
+        ];
+        return sections.map(({ title, rows }) => (
+          <section key={title} className="bg-card border border-border rounded-2xl p-5">
+            <h3 className="font-bold text-sm mb-3">{title}</h3>
+            {rows.length === 0 ? (
+              <p className="text-xs text-muted-foreground">אין נתוני תוכן לתקופה הזו.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-muted-foreground text-right">
+                      <th className="py-1.5 font-medium">תוכן</th>
+                      <th className="py-1.5 font-medium">משך צפייה ממוצע</th>
+                      <th className="py-1.5 font-medium">צפיות</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => {
+                      const id = String(r[0]);
+                      const m = meta[id];
+                      return (
+                        <tr key={id} className="border-t border-border">
+                          <td className="py-2 pl-3">
+                            <a href={`/analytics/video/${id}`} className="flex items-center gap-3 hover:text-primary">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="w-20 h-11 object-cover rounded-md shrink-0" />
+                              <span className="min-w-0">
+                                <span className="line-clamp-2">{m?.title ?? id}</span>
+                                {m?.publishedAt && <span className="block text-xs text-muted-foreground">{fmtDateShort(m.publishedAt)}</span>}
+                              </span>
+                            </a>
+                          </td>
+                          <td className="py-2 whitespace-nowrap">
+                            {fmtDuration(Number(r[4] ?? 0))}{" "}
+                            <span className="text-muted-foreground text-xs">({Number(r[5] ?? 0).toFixed(1)}%)</span>
+                          </td>
+                          <td className="py-2 font-semibold">{fmtNum(Number(r[1] ?? 0))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ));
+      })()}
 
       <DisabledCard title="זמן אמת (48 השעות האחרונות)" studioUrl={`${STUDIO_URL}`} />
     </div>
