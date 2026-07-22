@@ -269,5 +269,8 @@ export function topClipsByVirality(rows: SubmagicClipRow[], n = REELS_KEEP_TOP):
  * race, not a real error — callers should retry with a delay.
  */
 export function isVideoNotReadyError(msg: string): boolean {
-  return /determine video duration/i.test(msg);
+  // Two phrasings observed from Submagic for a video YouTube hasn't finished
+  // processing: "Could not determine video duration..." and
+  // "yt-api /video returned no usable metadata ... error=Retry".
+  return /determine video duration|no usable metadata/i.test(msg);
 }

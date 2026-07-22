@@ -311,3 +311,12 @@ describe("isVideoNotReadyError", () => {
     expect(isVideoNotReadyError("User theme not found")).toBe(false);
   });
 });
+
+it("matches the yt-api no-usable-metadata variant of the race", async () => {
+  const { isVideoNotReadyError } = await import("../submagic");
+  expect(
+    isVideoNotReadyError(
+      'יצירת Magic Clips נכשלה (500): {"error":"INTERNAL_SERVER_ERROR","message":"yt-api /video returned no usable metadata for rHv7nfJC96A (status=unknown, error=Retry, code=403)."}',
+    ),
+  ).toBe(true);
+});
