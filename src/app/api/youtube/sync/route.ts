@@ -24,6 +24,10 @@ export async function POST() {
       .not("youtube_video_id", "is", null);
     const known = new Set((existing ?? []).map((e) => e.youtube_video_id as string));
 
+    // Deleted episodes are tombstoned in sync_exclusions — never re-import them.
+    const { data: excluded } = await supabase.from("sync_exclusions").select("video_id");
+    for (const row of excluded ?? []) known.add(row.video_id as string);
+
     const channelId = process.env.NEXT_PUBLIC_DEFAULT_CHANNEL_ID!;
     const rows = uploads
       .filter((v) => !known.has(v.videoId) && v.privacyStatus === "public")

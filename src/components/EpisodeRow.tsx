@@ -39,6 +39,10 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
     if (!window.confirm("למחוק את הפרק לצמיתות? כל התוכן שנוצר עבורו יימחק.")) return;
     setBusy(true);
     try {
+      if (ep.youtube_video_id) {
+        // Tombstone so the channel sync never re-imports this video.
+        await supabase.from("sync_exclusions").upsert({ video_id: ep.youtube_video_id });
+      }
       await supabase.from("generations").delete().eq("episode_id", ep.id);
       await supabase.from("transcripts").delete().eq("episode_id", ep.id);
       await supabase.from("jobs").delete().eq("episode_id", ep.id);
