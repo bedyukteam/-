@@ -10,6 +10,19 @@ import {
   topClipsByVirality,
 } from "@/lib/submagic";
 import { generateReelsMetadata } from "@/lib/reels-metadata";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isVideoNotReadyError } from "@/lib/submagic";
+
+const RETRY_DELAY_MS = 3 * 60 * 1000;
+const MAX_RETRIES = 3;
+
+function scheduleRetry(episodeId: string, origin: string, retriesLeft: number) {
+  setTimeout(() => {
+    const admin = createAdminClient();
+    if (!admin) return;
+    void triggerSubmagic(admin, episodeId, origin, { retriesLeft });
+  }, RETRY_DELAY_MS);
+}
 
 /** Best-effort: generate yt metadata for clips that just arrived. Never throws. */
 export async function tryGenerateReelsMetadata(sb: SupabaseClient, episodeId: string) {
@@ -30,16 +43,19 @@ export async function triggerSubmagic(
   sb: SupabaseClient,
   episodeId: string,
   origin: string,
-  opts: { recreate?: boolean } = {},
+  opts: { recreate?: boolean; retriesLeft?: number } = {},
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const { data: ep } = await sb
       .from("episodes")
-      .select("title, type, youtube_video_id, channel_id")
+      .select("title, type, youtube_video_id, channel_id, submagic_project_id")
       .eq("id", episodeId)
       .single();
     if (!ep?.youtube_video_id) return { ok: false, error: "אין סרטון יוטיוב מפורסם לפרק" };
     if (ep.type === "short") return { ok: false, error: "רילס נוצרים רק לפרקים מלאים" };
+    // A scheduled retry must not double-create if a project appeared meanwhile
+    // (manual trigger, or an earlier retry that succeeded).
+    if (opts.retriesLeft !== undefined && ep.submagic_project_id) return { ok: true };
 
     const { data: gens } = await sb
       .from("generations")
@@ -95,6 +111,16 @@ export async function triggerSubmagic(
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const retriesLeft = opts.retriesLeft ?? MAX_RETRIES;
+    if (isVideoNotReadyError(msg) && retriesLeft > 0) {
+      console.error(
+        `[submagic-trigger] ${episodeId} video not ready on YouTube yet — retrying in ${RETRY_DELAY_MS / 60000} min (${retriesLeft} left)`,
+      );
+      // Keep the episode looking in-progress while we wait for YouTube.
+      await sb.from("episodes").update({ submagic_status: "processing" }).eq("id", episodeId);
+      scheduleRetry(episodeId, origin, retriesLeft - 1);
+      return { ok: true };
+    }
     console.error("[submagic-trigger]", episodeId, msg);
     await sb.from("episodes").update({ submagic_status: "error" }).eq("id", episodeId);
     return { ok: false, error: msg };

@@ -262,3 +262,12 @@ export function topClipsByVirality(rows: SubmagicClipRow[], n = REELS_KEEP_TOP):
     .sort((a, b) => (b.virality_total ?? 0) - (a.virality_total ?? 0))
     .slice(0, n);
 }
+
+/**
+ * Right after a YouTube publish the video may not be processed yet, and
+ * Submagic fails with "Could not determine video duration". That's a timing
+ * race, not a real error — callers should retry with a delay.
+ */
+export function isVideoNotReadyError(msg: string): boolean {
+  return /determine video duration/i.test(msg);
+}

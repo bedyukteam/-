@@ -295,3 +295,19 @@ describe("topClipsByVirality", () => {
     expect(top[0]).toMatchObject({ id: "b" });
   });
 });
+
+describe("isVideoNotReadyError", () => {
+  it("matches Submagic's video-duration race error", async () => {
+    const { isVideoNotReadyError } = await import("../submagic");
+    expect(
+      isVideoNotReadyError(
+        'יצירת Magic Clips נכשלה (400): {"error":"BAD_REQUEST","message":"Could not determine video duration. Please try again or use a different video."}',
+      ),
+    ).toBe(true);
+  });
+  it("does not match real errors", async () => {
+    const { isVideoNotReadyError } = await import("../submagic");
+    expect(isVideoNotReadyError("Magic Clips subscription required")).toBe(false);
+    expect(isVideoNotReadyError("User theme not found")).toBe(false);
+  });
+});
