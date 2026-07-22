@@ -27,23 +27,51 @@ export default function PublishPanel({
   const [publishAt, setPublishAt] = useState("");
   const [busy, setBusy] = useState(false);
 
+  async function startDrive(publishAtIso: string | null) {
+    const res = await fetch(`/api/episodes/${episodeId}/youtube/drive`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ publishAt: publishAtIso }),
+    });
+    return !((await res.json().catch(() => ({}))) as { error?: string }).error;
+  }
+
   async function publish(publishAtIso: string | null) {
     setBusy(true);
     try {
-      let done = false;
-      while (!done) {
-        const res = await fetch(`/api/episodes/${episodeId}/youtube/upload-chunk`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ publishAt: publishAtIso }),
-        });
-        const json: { done?: boolean; error?: string } = await res.json().catch(() => ({ error: "שגיאת רשת" }));
+      // The server drives the whole upload (closing this tab no longer stalls
+      // it) — we only poll for progress, and re-kick the driver if the byte
+      // count stops moving (e.g. the server restarted mid-upload).
+      if (!(await startDrive(publishAtIso))) return;
+      let lastBytes = -1;
+      let stalledPolls = 0;
+      for (let i = 0; i < 2000; i++) {
+        await new Promise((r) => setTimeout(r, 4000));
         onChange();
-        if (json.error) break;
-        done = !!json.done;
+        const res = await fetch(`/api/episodes/${episodeId}/publish-state`).catch(() => null);
+        const st = ((await res?.json().catch(() => null)) ?? {}) as {
+          youtube_status?: string | null;
+          youtube_uploaded_bytes?: number;
+        };
+        if (
+          st.youtube_status === "published" ||
+          st.youtube_status === "scheduled" ||
+          st.youtube_status === "error"
+        )
+          break;
+        const bytes = st.youtube_uploaded_bytes ?? 0;
+        stalledPolls = bytes === lastBytes ? stalledPolls + 1 : 0;
+        lastBytes = bytes;
+        if (stalledPolls >= 20) {
+          // ~80s with no movement — the driver likely died (server restart);
+          // kick it again, the resumable session continues from the DB offset.
+          stalledPolls = 0;
+          await startDrive(publishAtIso);
+        }
       }
     } finally {
       setBusy(false);
+      onChange();
     }
   }
 
