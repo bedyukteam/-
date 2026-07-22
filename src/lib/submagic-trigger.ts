@@ -13,8 +13,10 @@ import { generateReelsMetadata } from "@/lib/reels-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isVideoNotReadyError } from "@/lib/submagic";
 
-const RETRY_DELAY_MS = 3 * 60 * 1000;
-const MAX_RETRIES = 3;
+// Big uploads (1.5GB+) can keep YouTube processing for 30-40 minutes — the
+// retry window has to cover that (observed: 3x3min was not enough).
+const RETRY_DELAY_MS = 5 * 60 * 1000;
+const MAX_RETRIES = 8;
 
 function scheduleRetry(episodeId: string, origin: string, retriesLeft: number) {
   setTimeout(() => {
