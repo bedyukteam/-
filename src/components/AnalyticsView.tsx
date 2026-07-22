@@ -96,6 +96,7 @@ export default function AnalyticsView() {
 /* ================= סקירה כללית ================= */
 
 function OverviewTab({ period }: { period: Period }) {
+  const [contentType, setContentType] = useState<"all" | "episodes" | "shorts">("all");
   const { data, loading, error } = useReports(["channel_totals", "channel_series", "top_videos"], period);
   const [metric, setMetric] = useState("views");
 
@@ -139,19 +140,43 @@ function OverviewTab({ period }: { period: Period }) {
       </section>
 
       {(() => {
-        // Newest-first, split into podcast episodes vs shorts (user request):
-        // the raw report is ordered by views, which reads as a jumbled date list.
+        // One table, newest-first, with a type toggle (user request):
+        // הכל / פרקי פודקאסט / שורטס.
         const byDateDesc = (a: ReportRow, b: ReportRow) =>
           (meta[String(b[0])]?.publishedAt ?? "").localeCompare(meta[String(a[0])]?.publishedAt ?? "");
-        const episodes = top.filter((r) => !isShortDuration(meta[String(r[0])]?.durationSec ?? 0)).sort(byDateDesc);
-        const shorts = top.filter((r) => isShortDuration(meta[String(r[0])]?.durationSec ?? 0)).sort(byDateDesc);
-        const sections: { title: string; rows: ReportRow[] }[] = [
-          { title: "פרקי פודקאסט — מהחדש לישן", rows: episodes },
-          { title: "שורטס — מהחדש לישן", rows: shorts },
-        ];
-        return sections.map(({ title, rows }) => (
-          <section key={title} className="bg-card border border-border rounded-2xl p-5">
-            <h3 className="font-bold text-sm mb-3">{title}</h3>
+        const rows = top
+          .filter((r) => {
+            if (contentType === "all") return true;
+            const short = isShortDuration(meta[String(r[0])]?.durationSec ?? 0);
+            return contentType === "shorts" ? short : !short;
+          })
+          .sort(byDateDesc);
+        return (
+          <section className="bg-card border border-border rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <h3 className="font-bold text-sm">התוכן המוביל שלך במהלך התקופה הזו</h3>
+              <div className="flex gap-1 bg-muted rounded-lg p-1">
+                {(
+                  [
+                    { key: "all", label: "הכל" },
+                    { key: "episodes", label: "פודקאסט" },
+                    { key: "shorts", label: "שורטס" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setContentType(t.key)}
+                    className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                      contentType === t.key
+                        ? "bg-brand text-brand-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {rows.length === 0 ? (
               <p className="text-xs text-muted-foreground">אין נתוני תוכן לתקופה הזו.</p>
             ) : (
@@ -193,7 +218,7 @@ function OverviewTab({ period }: { period: Period }) {
               </div>
             )}
           </section>
-        ));
+        );
       })()}
 
       <DisabledCard title="זמן אמת (48 השעות האחרונות)" studioUrl={`${STUDIO_URL}`} />
