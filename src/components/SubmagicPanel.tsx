@@ -27,6 +27,7 @@ export default function SubmagicPanel({
   const [clips, setClips] = useState<ClipRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   const load = useCallback(async () => {
     const [{ data: ep }, { data: rows }] = await Promise.all([
@@ -44,6 +45,7 @@ export default function SubmagicPanel({
     setProjectId((ep?.submagic_project_id as string | null) ?? null);
     setStatus((ep?.submagic_status as string | null) ?? null);
     setClips((rows as ClipRow[]) ?? []);
+    setReady(true);
   }, [supabase, episodeId]);
 
   useEffect(() => {
@@ -69,6 +71,25 @@ export default function SubmagicPanel({
   }
 
   if (!youtubeVideoId) return null; // reels need a published YouTube video first
+  if (!ready) return null; // avoid flashing the compact button before state loads
+
+  // No project and no clips → the full card is noise. Offer a single compact
+  // action instead; the card appears once creation starts (or clips exist).
+  if (!projectId && clips.length === 0) {
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => callApi(`/api/episodes/${episodeId}/submagic`)}
+          disabled={busy}
+          title="שולח את הפרק ל-Submagic ליצירת רילס (קרדיט Magic Clips אחד)"
+          className="border border-border rounded-lg px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-50"
+        >
+          {busy ? "שולחת…" : "🎬 צור רילס מהפרק"}
+        </button>
+        {msg && <p className="text-sm text-danger">{msg}</p>}
+      </div>
+    );
+  }
 
   return (
     <section className="bg-surface border border-border rounded-2xl p-6">

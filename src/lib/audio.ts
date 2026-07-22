@@ -1,6 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
 import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 import ffmpegPath from "ffmpeg-static";
@@ -65,28 +68,42 @@ export async function extractAudioChunks(
 
 /**
  * Extract a podcast-quality mp3 from a remote video (presigned R2 URL).
- * ffmpeg streams the input over https; only the mp3 output touches disk.
+ * The video is streamed to a temp file first — ffmpeg's own https demuxer
+ * proved unreliable across static-build versions (the production binary died
+ * right after its banner on presigned R2 URLs), while Node's fetch is not.
  * 44.1 kHz / 128 kbps keeps publishing quality (~1 MB/min).
  */
 export async function extractPodcastAudio(inputUrl: string): Promise<Buffer> {
   if (!ffmpegPath) throw new Error("ffmpeg binary not available");
   const dir = await mkdtemp(join(tmpdir(), "pod-"));
   try {
+    const inPath = join(dir, "input.bin");
+    const res = await fetch(inputUrl);
+    if (!res.ok || !res.body) {
+      throw new Error(`הורדת קובץ הווידאו נכשלה (HTTP ${res.status})`);
+    }
+    await pipeline(Readable.fromWeb(res.body as import("node:stream/web").ReadableStream), createWriteStream(inPath));
+
     const out = join(dir, "episode.mp3");
     try {
       await exec(
         ffmpegPath,
-        ["-i", inputUrl, "-vn", "-ar", "44100", "-b:a", "128k", out],
+        ["-i", inPath, "-vn", "-ar", "44100", "-b:a", "128k", out],
         { maxBuffer: 1024 * 1024 * 64 },
       );
     } catch (e) {
       // Never propagate the presigned URL (it embeds live credentials) — keep only
-      // the tail of ffmpeg's stderr, with any URLs scrubbed.
-      const stderr = String((e as { stderr?: string }).stderr ?? "")
+      // the tail of ffmpeg's stderr, with any URLs scrubbed. Include exit
+      // code/signal so an OOM SIGKILL is distinguishable from a codec error.
+      const err = e as { stderr?: string; code?: number | string; signal?: string };
+      const stderr = String(err.stderr ?? "")
         .replace(/https?:\/\/\S+/g, "<url>")
         .trim()
-        .slice(-300);
-      throw new Error("חילוץ האודיו נכשל (ffmpeg)" + (stderr ? `: ${stderr}` : ""));
+        .slice(-600);
+      const how = [err.code != null ? `code=${err.code}` : "", err.signal ? `signal=${err.signal}` : ""]
+        .filter(Boolean)
+        .join(" ");
+      throw new Error(`חילוץ האודיו נכשל (ffmpeg${how ? " " + how : ""})` + (stderr ? `: ${stderr}` : ""));
     }
     return await readFile(out);
   } finally {
