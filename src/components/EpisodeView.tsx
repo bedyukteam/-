@@ -219,8 +219,10 @@ export default function EpisodeView({
   const chosenTitle =
     (gens.find((g) => g.kind === "title" && g.selected)?.content as { text?: string } | undefined)
       ?.text ?? "";
-  // "Most suitable" cover title: approved thumbnail-title → first proposed → chosen episode title.
-  const proposedCoverTitle = approvedThumbTitle || thumbTitleOptions[0] || chosenTitle;
+  // "Most suitable" cover title: approved thumbnail-title → approved episode
+  // title (approving a title must update the cover template live) → first
+  // proposed thumbnail title.
+  const proposedCoverTitle = approvedThumbTitle || chosenTitle || thumbTitleOptions[0];
 
   return (
     <div className="flex flex-col gap-6">
