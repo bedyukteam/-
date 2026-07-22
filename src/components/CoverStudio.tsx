@@ -165,6 +165,9 @@ export default function CoverStudio({
     if (!cover) return;
     let cancelled = false;
     const img = new Image();
+    // Backgrounds live in Supabase Storage (cross-origin) — without CORS the
+    // canvas gets tainted and toBlob() (approve/download) throws.
+    img.crossOrigin = "anonymous";
     img.onload = () => !cancelled && setBg(img);
     img.onerror = () => !cancelled && setBgLoadError(true);
     img.src = cover.url;
@@ -349,6 +352,8 @@ export default function CoverStudio({
       await onChange();
       setDone("approved");
       setTimeout(() => setDone(""), 2500);
+    } catch (e) {
+      alert("אישור הקאבר נכשל: " + (e as Error).message);
     } finally {
       setBusy(false);
     }
