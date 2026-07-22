@@ -59,6 +59,7 @@ export default function EpisodeView({
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeUploadedBytes, setYoutubeUploadedBytes] = useState(0);
   const [canvaUrl, setCanvaUrl] = useState("");
+  const [coverTitleOverride, setCoverTitleOverride] = useState<string | null>(null);
   const drivingRef = useRef(false);
 
   // A video episode needs extract while its video is in R2 and no extract job succeeded.
@@ -185,6 +186,12 @@ export default function EpisodeView({
   async function toggleSelect(gen: Generation) {
     const next = !gen.selected;
     setGens((gs) => gs.map((g) => (g.id === gen.id ? { ...g, selected: next } : g)));
+    // Approving a title (either kind) drives the cover immediately — the most
+    // recent approval wins over any earlier one from the other section.
+    if (gen.kind === "title" || gen.kind === "thumbnail_title") {
+      const text = (gen.content as { text?: string } | undefined)?.text ?? "";
+      setCoverTitleOverride(next && text ? text : null);
+    }
     await fetch(`/api/generations/${gen.id}/select`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -219,10 +226,17 @@ export default function EpisodeView({
   const chosenTitle =
     (gens.find((g) => g.kind === "title" && g.selected)?.content as { text?: string } | undefined)
       ?.text ?? "";
-  // "Most suitable" cover title: approved thumbnail-title → approved episode
-  // title (approving a title must update the cover template live) → first
-  // proposed thumbnail title.
-  const proposedCoverTitle = approvedThumbTitle || chosenTitle || thumbTitleOptions[0];
+  const titleOptions = gens
+    .filter((g) => g.kind === "title")
+    .map((g) => (g.content as { text?: string } | undefined)?.text ?? "")
+    .filter(Boolean);
+  // "Most suitable" cover title: the title just approved in this session (any
+  // kind — last click wins) → approved thumbnail-title → approved episode
+  // title → first proposed thumbnail title.
+  const proposedCoverTitle =
+    coverTitleOverride || approvedThumbTitle || chosenTitle || thumbTitleOptions[0];
+  // Cover chips offer both the thumbnail suggestions and the episode titles.
+  const coverTitleOptions = [...new Set([...thumbTitleOptions, ...titleOptions])];
 
   return (
     <div className="flex flex-col gap-6">
@@ -260,7 +274,7 @@ export default function EpisodeView({
         <CoverStudio
           episodeId={episodeId}
           proposedTitle={proposedCoverTitle}
-          titleOptions={thumbTitleOptions}
+          titleOptions={coverTitleOptions}
           thumbnailPath={thumbnailPath}
           supabase={supabase}
           onChange={load}
