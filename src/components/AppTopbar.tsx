@@ -15,6 +15,7 @@ import { NAV_ITEMS, isNavActive } from "@/components/AppSidebar";
 import SettingsDrawer from "@/components/SettingsDrawer";
 
 function sectionTitle(pathname: string): string {
+  if (pathname.startsWith("/new")) return "פרק חדש";
   if (pathname.startsWith("/episodes")) return "פרק";
   if (pathname.startsWith("/ideas")) return "רעיונות לתוכן";
   if (pathname.startsWith("/reels/")) return "עריכת ריל";
@@ -52,7 +53,7 @@ export default function AppTopbar({
           <h1 className="font-bold text-lg truncate">{sectionTitle(pathname)}</h1>
         </div>
 
-        <Button variant="cta" size="lg" render={<Link href="/#new" />}>
+        <Button variant="cta" size="lg" render={<Link href="/new" />}>
           <Plus data-icon="inline-start" />
           פרק חדש
         </Button>

@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import UploadForm from "@/components/UploadForm";
 import EpisodeRow from "@/components/EpisodeRow";
 import type { Episode } from "@/lib/types";
 
@@ -17,26 +17,24 @@ export default async function HomePage() {
   const list = (episodes ?? []) as Episode[];
 
   return (
-    <div className="grid md:grid-cols-[1fr_1.2fr] gap-8 items-start">
-      <div id="new" className="scroll-mt-20">
-        <UploadForm />
-      </div>
-
-      <section>
-        {list.length === 0 ? (
-          <p className="text-muted-foreground text-sm bg-card border border-border rounded-2xl p-6">
-            עדיין אין פרקים. העלי פרק ראשון כדי להתחיל ✨
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {list.map((ep) => (
-              <li key={ep.id}>
-                <EpisodeRow ep={ep} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
+    <section className="max-w-3xl">
+      {list.length === 0 ? (
+        <p className="text-muted-foreground text-sm bg-card border border-border rounded-2xl p-6">
+          עדיין אין פרקים.{" "}
+          <Link href="/new" className="underline font-medium">
+            העלי פרק ראשון
+          </Link>{" "}
+          כדי להתחיל ✨
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {list.map((ep) => (
+            <li key={ep.id}>
+              <EpisodeRow ep={ep} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
