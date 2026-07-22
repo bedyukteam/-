@@ -1,10 +1,13 @@
 // Server-side driver for the YouTube resumable upload: one call starts a
-// fire-and-forget loop that pushes chunk after chunk (by calling our own
-// upload-chunk route with the caller's session cookie) until the upload
-// completes. The browser no longer has to stay open — closing the tab used
-// to freeze the upload mid-way.
+// fire-and-forget loop that pushes chunk after chunk until the upload
+// completes — the browser no longer has to stay open. The loop calls
+// uploadNextChunk DIRECTLY (an HTTP self-fetch of the public origin fails on
+// Render) and runs on the admin client so a long upload isn't cut short by
+// the caller's session-token expiry.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { uploadNextChunk } from "@/lib/youtube-upload";
 
 // Episodes currently being driven by THIS process. A server restart clears it,
 // and the client's stall-guard simply calls drive again — the resumable
@@ -22,29 +25,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { publishAt } = (await req.json().catch(() => ({}))) as { publishAt?: string | null };
 
+  const admin = createAdminClient();
+  if (!admin) return NextResponse.json({ error: "חסר SUPABASE_SERVICE_ROLE_KEY בשרת" }, { status: 500 });
+
   if (driving.has(id)) return NextResponse.json({ ok: true, driving: true, already: true });
   driving.add(id);
 
   const origin = new URL(req.url).origin;
-  const cookie = req.headers.get("cookie") ?? "";
 
   void (async () => {
     try {
-      for (let i = 0; i < 1000; i++) {
-        const res = await fetch(`${origin}/api/episodes/${id}/youtube/upload-chunk`, {
-          method: "POST",
-          headers: { "content-type": "application/json", cookie },
-          body: JSON.stringify({ publishAt: publishAt ?? null }),
-        });
-        const json = (await res.json().catch(() => ({}))) as { done?: boolean; error?: string };
-        if (json.error) {
-          console.error(`[youtube-drive] ${id} chunk failed:`, json.error.slice(0, 200));
-          break;
-        }
-        if (json.done) break;
+      for (let i = 0; i < 2000; i++) {
+        const result = await uploadNextChunk(admin, id, publishAt ?? null, origin);
+        if (result.done) break;
       }
     } catch (e) {
-      console.error(`[youtube-drive] ${id}:`, (e as Error).message);
+      console.error(`[youtube-drive] ${id}:`, (e as Error).message.slice(0, 300));
     } finally {
       driving.delete(id);
     }
