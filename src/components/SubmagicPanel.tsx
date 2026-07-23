@@ -52,6 +52,16 @@ export default function SubmagicPanel({
     void load();
   }, [load]);
 
+  // While Submagic is processing, refresh automatically every minute — the
+  // completion webhook can be missed when the server was asleep at delivery.
+  useEffect(() => {
+    if (status !== "processing") return;
+    const t = setInterval(() => {
+      void fetch(`/api/episodes/${episodeId}/submagic/refresh`, { method: "POST" }).then(() => load());
+    }, 60_000);
+    return () => clearInterval(t);
+  }, [status, episodeId, load]);
+
   async function callApi(path: string, payload?: Record<string, unknown>) {
     setBusy(true);
     setMsg(null);

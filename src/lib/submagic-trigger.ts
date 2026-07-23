@@ -26,6 +26,30 @@ function scheduleRetry(episodeId: string, origin: string, retriesLeft: number) {
   }, RETRY_DELAY_MS);
 }
 
+// Submagic's completion webhook is unreliable while the free-tier server can
+// be asleep at delivery time — poll as a safety net until the clips land.
+const POLL_DELAY_MS = 5 * 60 * 1000;
+const MAX_POLLS = 18; // ~90 minutes of coverage
+
+function schedulePoll(episodeId: string, pollsLeft: number) {
+  if (pollsLeft <= 0) return;
+  setTimeout(() => {
+    const admin = createAdminClient();
+    if (!admin) return;
+    void (async () => {
+      try {
+        const { status, clips } = await refreshSubmagic(admin, episodeId);
+        if (status === "processing" || (status === "ready" && clips === 0)) {
+          schedulePoll(episodeId, pollsLeft - 1);
+        }
+      } catch (e) {
+        console.error(`[submagic-poll] ${episodeId}:`, (e as Error).message.slice(0, 200));
+        schedulePoll(episodeId, pollsLeft - 1);
+      }
+    })();
+  }, POLL_DELAY_MS);
+}
+
 /** Best-effort: generate yt metadata for clips that just arrived. Never throws. */
 export async function tryGenerateReelsMetadata(sb: SupabaseClient, episodeId: string) {
   try {
@@ -110,6 +134,7 @@ export async function triggerSubmagic(
       .from("episodes")
       .update({ submagic_project_id: project.id, submagic_status: "processing" })
       .eq("id", episodeId);
+    schedulePoll(episodeId, MAX_POLLS);
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
