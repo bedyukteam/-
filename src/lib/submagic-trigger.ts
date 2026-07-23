@@ -31,7 +31,7 @@ function scheduleRetry(episodeId: string, origin: string, retriesLeft: number) {
 const POLL_DELAY_MS = 5 * 60 * 1000;
 const MAX_POLLS = 18; // ~90 minutes of coverage
 
-function schedulePoll(episodeId: string, pollsLeft: number) {
+export function schedulePoll(episodeId: string, pollsLeft: number) {
   if (pollsLeft <= 0) return;
   setTimeout(() => {
     const admin = createAdminClient();
