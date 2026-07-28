@@ -4,11 +4,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   createMagicClips,
+  createMagicClipsUpload,
   getProject,
   mapWebhookClips,
   parseDictionary,
   topClipsByVirality,
 } from "@/lib/submagic";
+import { objectSize, signGetUrl } from "@/lib/r2";
 import { generateReelsMetadata } from "@/lib/reels-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isVideoNotReadyError } from "@/lib/submagic";
@@ -59,6 +61,47 @@ export async function tryGenerateReelsMetadata(sb: SupabaseClient, episodeId: st
   }
 }
 
+/**
+ * Stream the episode video from R2 into Submagic's Magic Clips upload endpoint
+ * (no hosted-URL variant exists). Never buffers the file — the fetched R2 body
+ * is piped straight through with an exact Content-Length.
+ */
+async function magicClipsFromR2(
+  videoKey: string,
+  sourceFilename: string | null,
+  opts: {
+    title: string;
+    webhookUrl?: string;
+    templateName?: string;
+    userThemeId?: string;
+  },
+) {
+  const url = await signGetUrl(videoKey);
+  const res = await fetch(url);
+  if (!res.ok || !res.body) {
+    throw new Error(`קריאת וידאו הפרק מ-R2 נכשלה (${res.status})`);
+  }
+  const size = Number(res.headers.get("content-length") ?? 0) || (await objectSize(videoKey));
+  if (!size) {
+    void res.body.cancel();
+    throw new Error("גודל וידאו הפרק ב-R2 לא ידוע — אי אפשר להזרים ל-Submagic");
+  }
+  // ASCII-only filename — Hebrew names can break multipart parsing server-side.
+  const rawName = sourceFilename || videoKey.split("/").pop() || "episode.mp4";
+  const ext = /\.mov$/i.test(rawName) ? ".mov" : ".mp4";
+  const base = rawName.replace(/\.[^.]*$/, "").replace(/[^\w.\-]+/g, "_");
+  const filename = (/^_*$/.test(base) ? "episode" : base) + ext;
+  return createMagicClipsUpload({
+    ...opts,
+    file: {
+      filename,
+      contentType: ext === ".mov" ? "video/quicktime" : "video/mp4",
+      size,
+      stream: res.body,
+    },
+  });
+}
+
 /** Public origins only — Submagic can't reach localhost, so we rely on polling there. */
 function webhookUrlFor(origin: string): string | undefined {
   if (/localhost|127\.0\.0\.1/.test(origin)) return undefined;
@@ -74,14 +117,20 @@ export async function triggerSubmagic(
   try {
     const { data: ep } = await sb
       .from("episodes")
-      .select("title, type, youtube_video_id, channel_id, submagic_project_id")
+      .select(
+        "title, type, youtube_video_id, channel_id, submagic_project_id, video_key, source_filename",
+      )
       .eq("id", episodeId)
       .single();
-    if (!ep?.youtube_video_id) return { ok: false, error: "אין סרטון יוטיוב מפורסם לפרק" };
+    if (!ep) return { ok: false, error: "הפרק לא נמצא" };
     if (ep.type === "short") return { ok: false, error: "רילס נוצרים רק לפרקים מלאים" };
-    // A scheduled retry must not double-create if a project appeared meanwhile
-    // (manual trigger, or an earlier retry that succeeded).
-    if (opts.retriesLeft !== undefined && ep.submagic_project_id) return { ok: true };
+    // Never double-create: the trigger now fires both on upload and on YouTube
+    // publish (and on scheduled retries) — the first project wins. Re-styling
+    // (recreate) is the deliberate exception.
+    if (ep.submagic_project_id && !opts.recreate) return { ok: true };
+    if (!ep.video_key && !ep.youtube_video_id) {
+      return { ok: false, error: "אין וידאו לפרק — נדרש קובץ וידאו או סרטון יוטיוב מפורסם" };
+    }
 
     const { data: gens } = await sb
       .from("generations")
@@ -110,25 +159,48 @@ export async function triggerSubmagic(
       if (delErr) return { ok: false, error: "מחיקת הרילס הישנים נכשלה: " + delErr.message };
     }
 
-    const createOpts = {
+    const baseOpts = {
       title,
-      youtubeUrl: `https://www.youtube.com/watch?v=${ep.youtube_video_id}`,
       webhookUrl: webhookUrlFor(origin),
       templateName: (style?.submagic_template as string | null) ?? undefined,
       userThemeId: (style?.submagic_theme_id as string | null) ?? undefined,
     };
-    let project;
-    try {
-      project = await createMagicClips({ ...createOpts, dictionary });
-    } catch (err) {
-      // `dictionary` is documented on regular projects but not explicitly on
-      // magic-clips — if the API rejects it, fall back to a plain create so the
-      // reels still get made.
-      if (dictionary.length && /VALIDATION|dictionary/i.test((err as Error).message)) {
-        project = await createMagicClips(createOpts);
-      } else {
+    const createFromYoutube = async () => {
+      const createOpts = {
+        ...baseOpts,
+        youtubeUrl: `https://www.youtube.com/watch?v=${ep.youtube_video_id}`,
+      };
+      try {
+        return await createMagicClips({ ...createOpts, dictionary });
+      } catch (err) {
+        // `dictionary` is documented on regular projects but not explicitly on
+        // magic-clips — if the API rejects it, fall back to a plain create so the
+        // reels still get made.
+        if (dictionary.length && /VALIDATION|dictionary/i.test((err as Error).message)) {
+          return await createMagicClips(createOpts);
+        }
         throw err;
       }
+    };
+
+    let project;
+    if (ep.video_key) {
+      // The episode video is already in R2 — stream it straight to Submagic so
+      // reels start rendering right after upload, before any YouTube publish.
+      try {
+        project = await magicClipsFromR2(ep.video_key as string, ep.source_filename, baseOpts);
+      } catch (err) {
+        // e.g. >120min episode or a dead R2 object. When a published YouTube
+        // video exists (publish-time call) the old path still saves the day.
+        if (!ep.youtube_video_id) throw err;
+        console.error(
+          `[submagic-trigger] ${episodeId} R2 upload failed, falling back to YouTube:`,
+          (err as Error).message.slice(0, 300),
+        );
+        project = await createFromYoutube();
+      }
+    } else {
+      project = await createFromYoutube();
     }
     await sb
       .from("episodes")

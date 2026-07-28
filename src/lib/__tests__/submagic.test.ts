@@ -1,7 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
+  buildMultipart,
   createMagicClips,
   getProject,
+  isNewRender,
   mapWebhookClips,
   type MagicClipsWebhookPayload,
 } from "@/lib/submagic";
@@ -319,4 +321,74 @@ it("matches the yt-api no-usable-metadata variant of the race", async () => {
       'יצירת Magic Clips נכשלה (500): {"error":"INTERNAL_SERVER_ERROR","message":"yt-api /video returned no usable metadata for rHv7nfJC96A (status=unknown, error=Retry, code=403)."}',
     ),
   ).toBe(true);
+});
+
+describe("buildMultipart", () => {
+  const enc = new TextEncoder();
+  function fileFrom(bytes: Uint8Array) {
+    return new ReadableStream<Uint8Array>({
+      start(c) {
+        // two chunks to exercise the streaming path
+        c.enqueue(bytes.slice(0, 3));
+        c.enqueue(bytes.slice(3));
+        c.close();
+      },
+    });
+  }
+  async function drain(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+    const chunks: Uint8Array[] = [];
+    const reader = stream.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) {
+      out.set(c, off);
+      off += c.byteLength;
+    }
+    return out;
+  }
+
+  it("declares a Content-Length that matches the actual streamed bytes", async () => {
+    const data = enc.encode("fake mp4 bytes");
+    const { body, contentLength, contentType } = buildMultipart(
+      { title: "פרק בדיקה", language: "he" },
+      { filename: "episode.mp4", contentType: "video/mp4", size: data.byteLength, stream: fileFrom(data) },
+      "----test-boundary",
+    );
+    const bytes = await drain(body);
+    expect(bytes.byteLength).toBe(contentLength);
+    expect(contentType).toBe("multipart/form-data; boundary=----test-boundary");
+    const text = new TextDecoder().decode(bytes);
+    expect(text).toContain('name="title"\r\n\r\nפרק בדיקה');
+    expect(text).toContain('name="file"; filename="episode.mp4"');
+    expect(text).toContain("fake mp4 bytes");
+    expect(text.endsWith("\r\n------test-boundary--\r\n")).toBe(true);
+  });
+});
+
+describe("isNewRender", () => {
+  it("ignores rotating query strings on the same rendered file", () => {
+    expect(
+      isNewRender("https://cdn.submagic.co/renders/a1.mp4?sig=x1", "https://cdn.submagic.co/renders/a1.mp4?sig=y2"),
+    ).toBe(false);
+  });
+  it("detects a new rendered file path", () => {
+    expect(
+      isNewRender("https://cdn.submagic.co/renders/a1.mp4?sig=x", "https://cdn.submagic.co/renders/b2.mp4?sig=x"),
+    ).toBe(true);
+  });
+  it("treats a first-ever downloadUrl as new, and a missing fetched url as no change", () => {
+    expect(isNewRender(null, "https://cdn.submagic.co/renders/a1.mp4")).toBe(true);
+    expect(isNewRender("https://cdn.submagic.co/renders/a1.mp4", null)).toBe(false);
+    expect(isNewRender("https://cdn.submagic.co/renders/a1.mp4", undefined)).toBe(false);
+  });
+  it("falls back to string compare on non-URL values", () => {
+    expect(isNewRender("not a url", "not a url")).toBe(false);
+    expect(isNewRender("not a url", "other")).toBe(true);
+  });
 });

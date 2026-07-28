@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ReelPublishSheet from "@/components/ReelPublishSheet";
 
 export interface ClipCardData {
@@ -19,7 +20,13 @@ export interface ClipCardData {
   yt_error?: string | null;
   yt_publish_at?: string | null;
   edit_status?: string | null;
+  edit_opened_at?: string | null;
 }
+
+// External-edit sessions expire after 24h — past that the card stops polling
+// and the state self-clears on the next check.
+const EDITING_MAX_AGE_MS = 24 * 3600_000;
+const POLL_INTERVAL_MS = 180_000;
 
 function fmtDuration(sec: number | null): string {
   if (sec == null) return "";
@@ -81,7 +88,47 @@ export default function ClipCard({
   onChanged?: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const router = useRouter();
+  const reload = onChanged ?? (() => router.refresh());
   const videoSrc = clip.download_url ?? clip.direct_url;
+
+  const checkForUpdate = async () => {
+    const res = await fetch(`/api/reels/${clip.id}/edit/refresh`, { method: "POST" });
+    const body = (await res.json().catch(() => ({}))) as {
+      changed?: boolean;
+      cleared?: boolean;
+      notFound?: boolean;
+    };
+    if (body.changed || body.cleared || body.notFound) reload();
+    return body;
+  };
+
+  // While the clip is being edited in Submagic's own editor, poll for the
+  // re-exported render (their UI never calls our webhook). Visibility-gated to
+  // respect Submagic's 100 GET/hour budget; jittered first tick picks up edits
+  // made while the app was closed without a thundering herd on page load.
+  useEffect(() => {
+    if (clip.edit_status !== "editing") return;
+    const opened = clip.edit_opened_at ? Date.parse(clip.edit_opened_at) : Date.now();
+    if (Date.now() - opened > EDITING_MAX_AGE_MS) return;
+    const tick = () => {
+      if (document.hidden) return;
+      void fetch(`/api/reels/${clip.id}/edit/refresh`, { method: "POST" })
+        .then((r) => r.json())
+        .then((body: { changed?: boolean; cleared?: boolean; notFound?: boolean }) => {
+          if (body.changed || body.cleared || body.notFound) reload();
+        })
+        .catch(() => {});
+    };
+    const first = setTimeout(tick, 2000 + Math.random() * 10_000);
+    const iv = setInterval(tick, POLL_INTERVAL_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clip.edit_status, clip.edit_opened_at, clip.id]);
 
   return (
     <li className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-2">
@@ -129,6 +176,19 @@ export default function ClipCard({
         <Link href={`/reels/${clip.id}`} className="underline">
           ✏️ עריכה
         </Link>
+        <a
+          href={`https://app.submagic.co/v/${clip.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+          onClick={() => {
+            // Mark as externally-edited so the card starts polling for the
+            // re-exported render; the new tab opens regardless.
+            void fetch(`/api/reels/${clip.id}/edit/open`, { method: "POST" }).then(() => reload());
+          }}
+        >
+          🪄 עריכה ב-Submagic
+        </a>
         {clip.download_url && (
           <a href={clip.download_url} target="_blank" rel="noreferrer" className="underline">
             ⬇️ הורדה
@@ -136,6 +196,29 @@ export default function ClipCard({
         )}
         {clip.edit_status === "exporting" && (
           <span className="text-xs text-muted-foreground">מרנדר מחדש…</span>
+        )}
+        {clip.edit_status === "editing" && (
+          <>
+            <span className="text-xs font-medium rounded-full px-2 py-1 bg-accent/20">
+              נערך ב-Submagic…
+            </span>
+            <button
+              onClick={() => {
+                setChecking(true);
+                void checkForUpdate().finally(() => setChecking(false));
+              }}
+              disabled={checking}
+              className="text-xs underline disabled:opacity-50"
+              title="בדיקה מיידית אם נשמרה גרסה חדשה ב-Submagic"
+            >
+              {checking ? "בודק…" : "בדקי עדכון"}
+            </button>
+          </>
+        )}
+        {clip.edit_status === "exported" && (
+          <span className="text-xs font-medium rounded-full px-2 py-1 bg-green-600/15 text-green-700">
+            עודכן ✓
+          </span>
         )}
       </div>
 

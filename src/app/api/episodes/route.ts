@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { triggerSubmagic } from "@/lib/submagic-trigger";
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -42,6 +44,10 @@ export async function POST(req: Request) {
       video_size: hasVideo && typeof video_size === "number" ? video_size : null,
       input_mode: mode,
       status: hasTranscript ? "processing" : "uploaded",
+      // Reels start right away for full video episodes; marking 'processing'
+      // here (not after the slow stream to Submagic) lets the boot sweep
+      // re-arm the trigger if the server dies mid-upload.
+      ...(hasVideo && type !== "short" ? { submagic_status: "processing" } : {}),
     })
     .select("id")
     .single();
@@ -62,6 +68,19 @@ export async function POST(req: Request) {
       stage: "transcribe",
       status: "done",
     });
+  }
+
+  // Full episode uploaded as video → start the Submagic reels right away,
+  // without waiting for the YouTube publish (the video is already in R2).
+  // Fire-and-forget on the persistent server: the multi-GB stream to Submagic
+  // must not block this response. The publish-time trigger stays as fallback —
+  // triggerSubmagic dedups on submagic_project_id.
+  if (hasVideo && type !== "short") {
+    const admin = createAdminClient();
+    if (admin) {
+      const origin = new URL(req.url).origin;
+      void triggerSubmagic(admin, ep.id, origin);
+    }
   }
 
   return NextResponse.json({ id: ep.id });

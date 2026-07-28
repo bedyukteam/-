@@ -80,6 +80,111 @@ export async function createMagicClips(opts: {
   return (await res.json()) as MagicClipsProject;
 }
 
+/* ---------------- Magic Clips from an uploaded file ---------------- */
+// POST /projects/magic-clips/upload (multipart, MP4/MOV ≤10GB ≤120min) — the
+// only file-based Magic Clips variant; there is no hosted-URL variant, so the
+// caller streams the episode video (from R2) straight through. The body is
+// hand-rolled so we can send an exact Content-Length without buffering the
+// file (the server has 512MB RAM; episodes run 1.5GB+).
+
+export interface MultipartFile {
+  filename: string;
+  contentType: string;
+  /** Exact byte size of the file — required for the Content-Length. */
+  size: number;
+  stream: ReadableStream<Uint8Array>;
+}
+
+/** Pure: compose a multipart/form-data body with an exact Content-Length. */
+export function buildMultipart(
+  fields: Record<string, string>,
+  file: MultipartFile,
+  boundary: string,
+): { body: ReadableStream<Uint8Array>; contentLength: number; contentType: string } {
+  const enc = new TextEncoder();
+  let head = "";
+  for (const [name, value] of Object.entries(fields)) {
+    head += `--${boundary}\r\ncontent-disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
+  }
+  head +=
+    `--${boundary}\r\ncontent-disposition: form-data; name="file"; ` +
+    `filename="${file.filename.replace(/"/g, "")}"\r\ncontent-type: ${file.contentType}\r\n\r\n`;
+  const preamble = enc.encode(head);
+  const epilogue = enc.encode(`\r\n--${boundary}--\r\n`);
+
+  // Pull-based so undici's backpressure reaches the source stream — an eager
+  // loop would buffer the whole video in memory.
+  const reader = file.stream.getReader();
+  let stage: "preamble" | "file" = "preamble";
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (stage === "preamble") {
+        controller.enqueue(preamble);
+        stage = "file";
+        return;
+      }
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.enqueue(epilogue);
+        controller.close();
+        return;
+      }
+      controller.enqueue(value);
+    },
+    cancel(reason) {
+      void reader.cancel(reason);
+    },
+  });
+
+  return {
+    body,
+    contentLength: preamble.byteLength + file.size + epilogue.byteLength,
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
+export async function createMagicClipsUpload(opts: {
+  title: string;
+  file: MultipartFile;
+  language?: string;
+  webhookUrl?: string;
+  minClipLength?: number;
+  maxClipLength?: number;
+  /** Built-in caption style; ignored when userThemeId is set (API forbids both). */
+  templateName?: string;
+  /** The user's custom caption theme (font/size/position designed in Submagic's editor). */
+  userThemeId?: string;
+}): Promise<MagicClipsProject> {
+  const theme = opts.userThemeId?.trim();
+  const template = opts.templateName?.trim();
+  // Note: `dictionary` is deliberately not sent — the upload endpoint doesn't
+  // document it and there's no safe multipart encoding to guess at.
+  const fields: Record<string, string> = {
+    title: opts.title.slice(0, 100),
+    language: opts.language ?? "he",
+    ...(opts.webhookUrl ? { webhookUrl: opts.webhookUrl } : {}),
+    ...(opts.minClipLength ? { minClipLength: String(opts.minClipLength) } : {}),
+    ...(opts.maxClipLength ? { maxClipLength: String(opts.maxClipLength) } : {}),
+    ...(theme ? { userThemeId: theme } : template ? { templateName: template } : {}),
+  };
+  const boundary = `----podcast-studio-${crypto.randomUUID()}`;
+  const { body, contentLength, contentType } = buildMultipart(fields, opts.file, boundary);
+  const res = await fetch(`${API_BASE}/projects/magic-clips/upload`, {
+    method: "POST",
+    headers: {
+      "content-type": contentType,
+      "content-length": String(contentLength),
+      "x-api-key": apiKey(),
+    },
+    body,
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+  if (!res.ok) {
+    throw new Error(`העלאת הפרק ל-Magic Clips נכשלה (${res.status}): ${await res.text()}`);
+  }
+  return (await res.json()) as MagicClipsProject;
+}
+
 export async function getProject(projectId: string): Promise<MagicClipsProject> {
   const res = await fetch(`${API_BASE}/projects/${projectId}`, {
     headers: { "x-api-key": apiKey() },
@@ -201,6 +306,20 @@ export async function exportProject(
     throw new Error(`רינדור-מחדש ב-Submagic נכשל (${res.status}): ${await res.text()}`);
   }
   return (await res.json()) as { projectId?: string; status?: string; message?: string };
+}
+
+/**
+ * Pure: true when a fetched downloadUrl represents a new render. Compared by
+ * URL pathname so rotating signed-URL query strings don't read as changes.
+ */
+export function isNewRender(stored: string | null, fetched: string | null | undefined): boolean {
+  if (!fetched) return false;
+  if (!stored) return true;
+  try {
+    return new URL(stored).pathname !== new URL(fetched).pathname;
+  } catch {
+    return stored !== fetched;
+  }
 }
 
 /** Pure: return a new words array with the given index→text edits applied. */
