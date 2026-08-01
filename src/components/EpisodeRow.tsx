@@ -14,7 +14,17 @@ const STATUS_STYLE: Record<string, string> = {
   uploaded: "bg-slate-100 text-muted-foreground",
 };
 
-export default function EpisodeRow({ ep }: { ep: Episode }) {
+export default function EpisodeRow({
+  ep,
+  clipsCount = 0,
+  ideasCount = 0,
+}: {
+  ep: Episode;
+  /** Reels created from this episode (submagic_clips) — shows the 🎬 shortcut. */
+  clipsCount?: number;
+  /** Generated quotes+carousels — shows the 📝 shortcut. */
+  ideasCount?: number;
+}) {
   const supabase = useRef(createClient()).current;
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -96,6 +106,24 @@ export default function EpisodeRow({ ep }: { ep: Episode }) {
 
       {!editing && (
         <div className="flex items-center gap-2 shrink-0">
+          {clipsCount > 0 && (
+            <Link
+              href={`/reels?episode=${ep.id}`}
+              title="הרילסים שנוצרו מהפרק"
+              className="text-xs text-muted-foreground hover:text-primary whitespace-nowrap"
+            >
+              🎬 רילסים ({clipsCount})
+            </Link>
+          )}
+          {ideasCount > 0 && (
+            <Link
+              href={`/ideas?episode=${ep.id}`}
+              title="ציטוטים וקרוסלות שנוצרו מהפרק"
+              className="text-xs text-muted-foreground hover:text-primary whitespace-nowrap"
+            >
+              📝 תוכן ({ideasCount})
+            </Link>
+          )}
           <span
             className={`text-xs px-2 py-0.5 rounded-full ${STATUS_STYLE[ep.status] ?? STATUS_STYLE.uploaded}`}
           >
