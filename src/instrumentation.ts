@@ -7,7 +7,9 @@ export async function register() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
 
   const { createAdminClient } = await import("@/lib/supabase/admin");
-  const { schedulePoll, triggerSubmagic } = await import("@/lib/submagic-trigger");
+  const { EDIT_MAX_POLLS, schedulePoll, scheduleEditPoll, triggerSubmagic } = await import(
+    "@/lib/submagic-trigger"
+  );
 
   const admin = createAdminClient();
   if (!admin) return;
@@ -33,5 +35,22 @@ export async function register() {
     }
   } catch (e) {
     console.error("[boot-sweep]", (e as Error).message);
+  }
+
+  try {
+    // Re-arm polling for reels being edited in Submagic's UI (their exports
+    // never call our webhook; the poll timers died with the old process).
+    const cutoff = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const { data: editing } = await admin
+      .from("submagic_clips")
+      .select("id")
+      .eq("edit_status", "editing")
+      .gte("edit_opened_at", cutoff);
+    for (const clip of editing ?? []) {
+      console.log(`[boot-sweep] resuming edit polling for clip ${clip.id}`);
+      scheduleEditPoll(clip.id as string, EDIT_MAX_POLLS);
+    }
+  } catch (e) {
+    console.error("[boot-sweep:edit]", (e as Error).message);
   }
 }

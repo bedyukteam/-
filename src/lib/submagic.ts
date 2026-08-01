@@ -309,14 +309,21 @@ export async function exportProject(
 }
 
 /**
- * Pure: true when a fetched downloadUrl represents a new render. Compared by
- * URL pathname so rotating signed-URL query strings don't read as changes.
+ * Pure: true when a fetched downloadUrl represents a new render.
+ * Submagic download links keep a constant pathname (/api/file/download) and
+ * carry the real file identity in the `path` query param — so the render
+ * identity is pathname + `path`, while other (potentially rotating) query
+ * params are ignored.
  */
 export function isNewRender(stored: string | null, fetched: string | null | undefined): boolean {
   if (!fetched) return false;
   if (!stored) return true;
   try {
-    return new URL(stored).pathname !== new URL(fetched).pathname;
+    const key = (raw: string) => {
+      const u = new URL(raw);
+      return `${u.pathname}|${u.searchParams.get("path") ?? ""}`;
+    };
+    return key(stored) !== key(fetched);
   } catch {
     return stored !== fetched;
   }

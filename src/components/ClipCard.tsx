@@ -26,7 +26,9 @@ export interface ClipCardData {
 // External-edit sessions expire after 24h — past that the card stops polling
 // and the state self-clears on the next check.
 const EDITING_MAX_AGE_MS = 24 * 3600_000;
-const POLL_INTERVAL_MS = 180_000;
+// Cheap tick: the server-side poller (scheduleEditPoll) does the Submagic API
+// work; the card only re-reads our own DB via reload().
+const POLL_INTERVAL_MS = 60_000;
 
 function fmtDuration(sec: number | null): string {
   if (sec == null) return "";
@@ -104,29 +106,20 @@ export default function ClipCard({
     return body;
   };
 
-  // While the clip is being edited in Submagic's own editor, poll for the
-  // re-exported render (their UI never calls our webhook). Visibility-gated to
-  // respect Submagic's 100 GET/hour budget; jittered first tick picks up edits
-  // made while the app was closed without a thundering herd on page load.
+  // While the clip is being edited in Submagic's own editor, the SERVER polls
+  // Submagic for the re-exported render (scheduleEditPoll — works even with
+  // this tab closed). The card just re-reads our DB once a minute so the
+  // update appears without a manual refresh. Zero Submagic API cost here.
   useEffect(() => {
     if (clip.edit_status !== "editing") return;
     const opened = clip.edit_opened_at ? Date.parse(clip.edit_opened_at) : Date.now();
     if (Date.now() - opened > EDITING_MAX_AGE_MS) return;
     const tick = () => {
       if (document.hidden) return;
-      void fetch(`/api/reels/${clip.id}/edit/refresh`, { method: "POST" })
-        .then((r) => r.json())
-        .then((body: { changed?: boolean; cleared?: boolean; notFound?: boolean }) => {
-          if (body.changed || body.cleared || body.notFound) reload();
-        })
-        .catch(() => {});
+      reload();
     };
-    const first = setTimeout(tick, 2000 + Math.random() * 10_000);
     const iv = setInterval(tick, POLL_INTERVAL_MS);
-    return () => {
-      clearTimeout(first);
-      clearInterval(iv);
-    };
+    return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clip.edit_status, clip.edit_opened_at, clip.id]);
 

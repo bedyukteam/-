@@ -4,6 +4,7 @@
 // UI exports never call our webhook, so this flag scopes the polling.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { EDIT_MAX_POLLS, scheduleEditPoll } from "@/lib/submagic-trigger";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ clipId: string }> }) {
   const { clipId } = await params;
@@ -22,5 +23,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ clipId
     .eq("id", clipId)
     .or("edit_status.neq.exporting,edit_status.is.null");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Track the external edit server-side too — Submagic's UI never calls our
+  // webhook, and the user may close her tab before the re-export finishes.
+  scheduleEditPoll(clipId, EDIT_MAX_POLLS);
+
   return NextResponse.json({ ok: true });
 }

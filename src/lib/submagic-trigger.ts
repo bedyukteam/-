@@ -6,6 +6,8 @@ import {
   createMagicClips,
   createMagicClipsUpload,
   getProject,
+  getProjectDetail,
+  isNewRender,
   mapWebhookClips,
   parseDictionary,
   topClipsByVirality,
@@ -59,6 +61,132 @@ export async function tryGenerateReelsMetadata(sb: SupabaseClient, episodeId: st
   } catch (e) {
     console.error("[reels-metadata] generation failed:", (e as Error).message);
   }
+}
+
+/* ---------------- External (Submagic-UI) reel edits ---------------- */
+// Exports done inside Submagic's own editor never call our webhook, so a clip
+// marked edit_status='editing' is polled for a changed downloadUrl. This core
+// serves both the manual/auto refresh route and the server-side poller.
+
+const EDITING_MAX_AGE_MS = 24 * 3600_000;
+
+export interface ClipEditRefreshResult {
+  status: string | null;
+  changed: boolean;
+  exported: boolean;
+  cleared?: boolean;
+  notFound?: boolean;
+  /** edit_status as stored BEFORE this check — poller stops unless 'editing'. */
+  editStatus: string | null;
+}
+
+/** Pull the clip's current state from Submagic and update our row when a new
+ *  render exists. Throws on unexpected Submagic errors (caller maps to 500). */
+export async function refreshClipEdit(
+  sb: SupabaseClient,
+  clipId: string,
+): Promise<ClipEditRefreshResult> {
+  const { data: row } = await sb
+    .from("submagic_clips")
+    .select("download_url, direct_url, edit_status, edit_opened_at")
+    .eq("id", clipId)
+    .single();
+  if (!row) return { status: null, changed: false, exported: false, notFound: true, editStatus: null };
+  const editStatus = (row.edit_status as string | null) ?? null;
+
+  let fresh;
+  try {
+    fresh = await getProjectDetail(clipId);
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (/\(404\)/.test(msg)) {
+      // Deleted on Submagic's side — keep our row (it may already be
+      // published), just stop the external-edit tracking.
+      if (editStatus === "editing") {
+        await sb
+          .from("submagic_clips")
+          .update({ edit_status: null, edit_opened_at: null })
+          .eq("id", clipId);
+      }
+      return { status: null, changed: false, exported: false, notFound: true, editStatus };
+    }
+    throw e;
+  }
+
+  if (editStatus === "exporting") {
+    // In-app export in flight — we know a render was started, so completion
+    // status is the signal (unchanged behavior).
+    const exported = fresh.status === "completed";
+    await sb
+      .from("submagic_clips")
+      .update({
+        ...(exported ? { edit_status: "exported", edit_opened_at: null } : {}),
+        ...(fresh.status === "failed" ? { edit_status: "error" } : {}),
+        ...(fresh.downloadUrl ? { download_url: fresh.downloadUrl } : {}),
+        ...(fresh.directUrl ? { direct_url: fresh.directUrl } : {}),
+      })
+      .eq("id", clipId);
+    return { status: fresh.status ?? null, changed: exported, exported, editStatus };
+  }
+
+  // Change-detection mode ('editing' / 'exported' / null): only an actually
+  // different downloadUrl counts as a re-export — a completed status alone
+  // proves nothing for a clip that was already rendered once.
+  if (isNewRender(row.download_url as string | null, fresh.downloadUrl)) {
+    await sb
+      .from("submagic_clips")
+      .update({
+        download_url: fresh.downloadUrl,
+        ...(fresh.directUrl ? { direct_url: fresh.directUrl } : {}),
+        ...(fresh.title ? { title: fresh.title } : {}),
+        edit_status: "exported",
+        edit_opened_at: null,
+      })
+      .eq("id", clipId);
+    return { status: fresh.status ?? null, changed: true, exported: true, editStatus };
+  }
+
+  // Nothing new. Expire a stale external-edit session so tracking stops.
+  const openedAt = row.edit_opened_at ? Date.parse(row.edit_opened_at as string) : NaN;
+  if (
+    editStatus === "editing" &&
+    Number.isFinite(openedAt) &&
+    Date.now() - openedAt > EDITING_MAX_AGE_MS
+  ) {
+    await sb
+      .from("submagic_clips")
+      .update({ edit_status: null, edit_opened_at: null })
+      .eq("id", clipId);
+    return { status: fresh.status ?? null, changed: false, exported: false, cleared: true, editStatus };
+  }
+
+  return { status: fresh.status ?? null, changed: false, exported: false, editStatus };
+}
+
+// Server-side polling while the user edits in Submagic's UI — works even when
+// her browser tab is closed. Same free-tier caveats as schedulePoll: timers
+// die with the process; the boot sweep re-arms active edit sessions.
+const EDIT_POLL_DELAY_MS = 2 * 60 * 1000;
+export const EDIT_MAX_POLLS = 60; // ~2 hours of coverage
+
+export function scheduleEditPoll(clipId: string, pollsLeft: number) {
+  if (pollsLeft <= 0) return;
+  setTimeout(() => {
+    const admin = createAdminClient();
+    if (!admin) return;
+    void (async () => {
+      try {
+        const r = await refreshClipEdit(admin, clipId);
+        // Stop on resolution, or when the clip left the 'editing' state some
+        // other way (manual check, in-app export, cleanup).
+        if (r.changed || r.cleared || r.notFound || r.editStatus !== "editing") return;
+        scheduleEditPoll(clipId, pollsLeft - 1);
+      } catch (e) {
+        console.error(`[edit-poll] ${clipId}:`, (e as Error).message.slice(0, 200));
+        scheduleEditPoll(clipId, pollsLeft - 1);
+      }
+    })();
+  }, EDIT_POLL_DELAY_MS);
 }
 
 /**

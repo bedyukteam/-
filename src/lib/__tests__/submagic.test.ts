@@ -382,6 +382,24 @@ describe("isNewRender", () => {
       isNewRender("https://cdn.submagic.co/renders/a1.mp4?sig=x", "https://cdn.submagic.co/renders/b2.mp4?sig=x"),
     ).toBe(true);
   });
+  it("detects a new render when only the `path` query param changed (Submagic URL shape)", () => {
+    // Real-world regression: Submagic download links always have the same
+    // pathname (/api/file/download); the file identity lives in ?path=.
+    expect(
+      isNewRender(
+        "https://app.submagic.co/api/file/download?path=a/b/clip-download-111.mp4&newFileName=x.mp4&storageProvider=r2",
+        "https://app.submagic.co/api/file/download?path=a/b/clip-download-222.mp4&newFileName=x.mp4&storageProvider=r2",
+      ),
+    ).toBe(true);
+  });
+  it("ignores non-path query params changing on the same file", () => {
+    expect(
+      isNewRender(
+        "https://app.submagic.co/api/file/download?path=a/b/clip-download-111.mp4&newFileName=x.mp4",
+        "https://app.submagic.co/api/file/download?path=a/b/clip-download-111.mp4&newFileName=y.mp4&sig=zzz",
+      ),
+    ).toBe(false);
+  });
   it("treats a first-ever downloadUrl as new, and a missing fetched url as no change", () => {
     expect(isNewRender(null, "https://cdn.submagic.co/renders/a1.mp4")).toBe(true);
     expect(isNewRender("https://cdn.submagic.co/renders/a1.mp4", null)).toBe(false);
