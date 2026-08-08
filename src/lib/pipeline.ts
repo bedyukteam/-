@@ -101,7 +101,16 @@ export async function runExtract(sb: SupabaseClient, episodeId: string): Promise
     const mp3 = await extractPodcastAudio(url);
     const audioKey = `audio/${episodeId}.mp3`;
     await uploadBuffer(audioKey, mp3, "audio/mpeg");
-    await sb.from("episodes").update({ audio_key: audioKey }).eq("id", episodeId);
+    await sb
+      .from("episodes")
+      .update({
+        audio_key: audioKey,
+        audio_size: mp3.length,
+        // CBR 128kbps (audio.ts) ⇒ size-derived duration is accurate to ~1s;
+        // ffmpeg-static ships no ffprobe, so this is the cheap reliable path.
+        duration_seconds: Math.round((mp3.length * 8) / 128000),
+      })
+      .eq("id", episodeId);
     await finishJob(sb, job);
     return "transcribe";
   } catch (e) {

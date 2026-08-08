@@ -4,6 +4,7 @@ import {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
+  CopyObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
@@ -91,6 +92,46 @@ export async function uploadBuffer(key: string, body: Buffer, contentType: strin
   await r2().send(
     new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, Body: body, ContentType: contentType }),
   );
+}
+
+/* ---------------- Public bucket (podcast feed + social video URLs) ----------------
+ * RSS enclosures and Meta's video_url need long-lived public HTTPS URLs, but
+ * presigned URLs cap at 7 days. A dedicated public bucket keeps "public" an
+ * explicit act: objects are copied/uploaded into it only on publish. */
+
+export const R2_PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET ?? "";
+
+function publicBucket(): string {
+  if (!R2_PUBLIC_BUCKET) throw new Error("R2_PUBLIC_BUCKET חסר בהגדרות הסביבה");
+  return R2_PUBLIC_BUCKET;
+}
+
+/** Public HTTPS URL for a key in the public bucket (custom domain or r2.dev). */
+export function publicUrl(key: string): string {
+  const base = process.env.R2_PUBLIC_BASE_URL;
+  if (!base) throw new Error("R2_PUBLIC_BASE_URL חסר בהגדרות הסביבה");
+  return `${base.replace(/\/$/, "")}/${key}`;
+}
+
+/** Server-side copy from the private bucket into the public one (no transfer). */
+export async function copyToPublicBucket(key: string) {
+  await r2().send(
+    new CopyObjectCommand({
+      Bucket: publicBucket(),
+      Key: key,
+      CopySource: `${R2_BUCKET}/${key}`,
+    }),
+  );
+}
+
+export async function uploadBufferPublic(key: string, body: Buffer, contentType: string) {
+  await r2().send(
+    new PutObjectCommand({ Bucket: publicBucket(), Key: key, Body: body, ContentType: contentType }),
+  );
+}
+
+export async function deletePublicObject(key: string) {
+  await r2().send(new DeleteObjectCommand({ Bucket: publicBucket(), Key: key }));
 }
 
 export async function deleteObject(key: string) {

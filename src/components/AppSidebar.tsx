@@ -7,7 +7,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BarChart3, Clapperboard, Home, Lightbulb, Palette, PlusCircle, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarDays, Clapperboard, Home, Lightbulb, Palette, PlusCircle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SettingsDrawer from "@/components/SettingsDrawer";
 
@@ -24,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "הפרקים שלי", icon: Home, also: ["/episodes"] },
   { href: "/ideas", label: "רעיונות לתוכן", icon: Lightbulb },
   { href: "/reels", label: "רילס", icon: Clapperboard },
+  { href: "/calendar", label: "לוח תוכן", icon: CalendarDays },
   { href: "/analytics", label: "אנליטיקס", icon: BarChart3 },
   { href: "/settings", label: "הנחיות סגנון", icon: Palette },
 ];

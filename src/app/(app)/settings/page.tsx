@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import SettingsForm from "@/components/SettingsForm";
+import PodcastSettingsPanel, { type PodcastSettings } from "@/components/PodcastSettingsPanel";
 import { listTemplates } from "@/lib/submagic";
 import { KIND_LABELS } from "@/lib/constants";
 import type { GenerationKind, StyleExample, StyleProfile } from "@/lib/types";
@@ -30,6 +31,12 @@ export default async function SettingsPage() {
     // non-fatal — the style select just shows the default option
   }
 
+  const { data: podcast } = await supabase.from("podcast_settings").select("*").maybeSingle();
+  const publicBase = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
+  const artworkUrl =
+    podcast?.artwork_key && publicBase ? `${publicBase}/${podcast.artwork_key}` : null;
+  const feedUrl = `${process.env.RENDER_EXTERNAL_URL ?? "https://podcast-studio-wxbw.onrender.com"}/api/podcast/feed`;
+
   const grouped: Record<string, StyleExample[]> = {};
   for (const ex of (examples ?? []) as StyleExample[]) {
     (grouped[ex.kind] ??= []).push(ex);
@@ -46,6 +53,13 @@ export default async function SettingsPage() {
           initial={(profile as StyleProfile) ?? null}
           captionTemplates={captionTemplates}
         />
+        <div className="mt-8">
+          <PodcastSettingsPanel
+            initial={(podcast as PodcastSettings) ?? null}
+            artworkUrl={artworkUrl}
+            feedUrl={feedUrl}
+          />
+        </div>
       </div>
 
       <div>

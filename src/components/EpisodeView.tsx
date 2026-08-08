@@ -58,6 +58,8 @@ export default function EpisodeView({
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeUploadedBytes, setYoutubeUploadedBytes] = useState(0);
+  const [audioKey, setAudioKey] = useState<string | null>(null);
+  const [spotifyPublishedAt, setSpotifyPublishedAt] = useState<string | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
   const drivingRef = useRef(false);
 
@@ -69,7 +71,7 @@ export default function EpisodeView({
       supabase
         .from("episodes")
         .select(
-          "status, type, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes",
+          "status, type, thumbnail_path, video_key, video_size, youtube_status, youtube_video_id, youtube_error, youtube_uploaded_bytes, audio_key, spotify_published_at",
         )
         .eq("id", episodeId)
         .single(),
@@ -87,6 +89,10 @@ export default function EpisodeView({
       setYoutubeVideoId((ep as { youtube_video_id: string | null }).youtube_video_id ?? null);
       setYoutubeError((ep as { youtube_error: string | null }).youtube_error ?? null);
       setYoutubeUploadedBytes((ep as { youtube_uploaded_bytes: number }).youtube_uploaded_bytes ?? 0);
+      setAudioKey((ep as { audio_key: string | null }).audio_key ?? null);
+      setSpotifyPublishedAt(
+        (ep as { spotify_published_at: string | null }).spotify_published_at ?? null,
+      );
     }
     setJobs((j ?? []) as Job[]);
     setTranscript((tr as Transcript) ?? null);
@@ -240,6 +246,8 @@ export default function EpisodeView({
           episodeId={episodeId}
           locked={!isPublishReady(gens, !!thumbnailPath, episodeType)}
           hasVideo={!!videoKey || youtubeStatus === "published" || youtubeStatus === "scheduled"}
+          hasAudio={!!audioKey}
+          spotifyPublishedAt={spotifyPublishedAt}
           youtubeStatus={youtubeStatus}
           youtubeVideoId={youtubeVideoId}
           youtubeError={youtubeError}

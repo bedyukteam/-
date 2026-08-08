@@ -32,6 +32,9 @@ export default function UploadForm() {
   const [stage, setStage] = useState<"compress" | "upload" | "process" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [archive, setArchive] = useState(false);
+  const [archiveDescription, setArchiveDescription] = useState("");
+  const [archiveDate, setArchiveDate] = useState("");
 
   async function upload(file: File): Promise<string> {
     const supabase = createClient();
@@ -66,7 +69,7 @@ export default function UploadForm() {
     return path;
   }
 
-  async function uploadVideoToR2(file: File): Promise<string> {
+  async function uploadVideoToR2(file: File, explicitKey?: string): Promise<string> {
     if (file.size === 0) throw new Error("הקובץ ריק.");
     const post = async (payload: Record<string, unknown>) => {
       const res = await fetch("/api/upload/r2", {
@@ -82,6 +85,7 @@ export default function UploadForm() {
       action: "create",
       filename: file.name,
       contentType: file.type || "video/mp4",
+      ...(explicitKey ? { key: explicitKey } : {}),
     });
     const parts: { ETag: string; PartNumber: number }[] = [];
     const total = Math.ceil(file.size / PART_SIZE);
@@ -155,6 +159,35 @@ export default function UploadForm() {
           source_filename: file.name,
           input_mode: "video",
         });
+        return;
+      }
+
+      // archive: straight into the podcast feed, no pipeline
+      if (archive) {
+        const file = fileRef.current?.files?.[0];
+        if (!file) throw new Error("בחרי קובץ אודיו (MP3).");
+        if (!title.trim()) throw new Error("לפרק ארכיון חובה כותרת.");
+        const res = await fetch("/api/episodes/archive", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ title, description: archiveDescription }),
+        });
+        const json = (await res.json()) as { id?: string; audioKey?: string; error?: string };
+        if (!res.ok || !json.id || !json.audioKey) throw new Error(json.error ?? "שגיאה ביצירת פרק הארכיון");
+        setStage("upload");
+        setProgress(0);
+        await uploadVideoToR2(file, json.audioKey);
+        setStage("process");
+        const pub = await fetch(`/api/episodes/${json.id}/podcast`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            publishAt: archiveDate ? new Date(archiveDate).toISOString() : null,
+          }),
+        });
+        const pubJson = (await pub.json().catch(() => ({}))) as { error?: string };
+        if (pubJson.error) throw new Error(pubJson.error);
+        router.push(`/episodes/${json.id}`);
         return;
       }
 
@@ -267,18 +300,60 @@ export default function UploadForm() {
       )}
 
       {mode === "audio" && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">קובץ אודיו/וידאו</span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="audio/*,video/*"
-            className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:text-primary file:px-3 file:py-2 file:font-medium"
-          />
-          <span className="text-xs text-muted-foreground">
-            קבצים מעל ~45MB נדחסים אוטומטית בדפדפן לפני ההעלאה.
-          </span>
-        </label>
+        <>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">{archive ? "קובץ MP3 של הפרק" : "קובץ אודיו/וידאו"}</span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={archive ? "audio/mpeg,.mp3" : "audio/*,video/*"}
+              className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:text-primary file:px-3 file:py-2 file:font-medium"
+            />
+            {!archive && (
+              <span className="text-xs text-muted-foreground">
+                קבצים מעל ~45MB נדחסים אוטומטית בדפדפן לפני ההעלאה.
+              </span>
+            )}
+          </label>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={archive}
+              onChange={(e) => setArchive(e.target.checked)}
+              className="accent-[var(--brand,#324158)]"
+            />
+            <span className="font-medium">פרק ארכיון (לפיד הפודקאסט, ללא עיבוד)</span>
+          </label>
+
+          {archive && (
+            <div className="flex flex-col gap-3 border border-border rounded-xl p-4 bg-muted/30">
+              <p className="text-xs text-muted-foreground">
+                לייבוא פרקים קיימים מ-Spotify for Creators לפני המעבר לפיד שלנו: הפרק נכנס ישר
+                לפיד עם התאריך המקורי — בלי תמלול, בלי רילס ובלי יוטיוב.
+              </p>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">תיאור הפרק (כמו בספוטיפיי)</span>
+                <textarea
+                  value={archiveDescription}
+                  onChange={(e) => setArchiveDescription(e.target.value)}
+                  rows={3}
+                  className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">תאריך הפרסום המקורי</span>
+                <input
+                  type="datetime-local"
+                  value={archiveDate}
+                  onChange={(e) => setArchiveDate(e.target.value)}
+                  dir="ltr"
+                  className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm w-fit"
+                />
+              </label>
+            </div>
+          )}
+        </>
       )}
 
       {progress !== null && (
@@ -303,7 +378,7 @@ export default function UploadForm() {
         disabled={busy}
         className="bg-brand text-brand-foreground rounded-lg py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
       >
-        {busy ? "מעבד…" : "צור חבילת תוכן"}
+        {busy ? "מעבד…" : archive && mode === "audio" ? "הוספה לפיד הפודקאסט" : "צור חבילת תוכן"}
       </button>
     </form>
   );

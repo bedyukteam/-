@@ -32,8 +32,14 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   // /api/webhooks/* are machine-to-machine callbacks (e.g. Submagic) — no user
   // session; each webhook route authenticates its own payload.
+  // /api/podcast/* is the public RSS feed (Spotify/Apple poll it anonymously).
+  // /api/cron/* is the Make-triggered scheduler — authenticated by CRON_SECRET.
   const isPublic =
-    path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/api/webhooks/");
+    path.startsWith("/login") ||
+    path.startsWith("/auth") ||
+    path.startsWith("/api/webhooks/") ||
+    path.startsWith("/api/podcast/") ||
+    path.startsWith("/api/cron/");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

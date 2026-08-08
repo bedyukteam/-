@@ -18,7 +18,12 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     if (body.action === "create") {
-      const key = `video/${crypto.randomUUID()}/${safeName(body.filename ?? "episode.mp4")}`;
+      // Archive-episode audio uploads target a preset key (audio/{episodeId}.mp3)
+      // so the podcast feed finds them; anything else gets a fresh video/ key.
+      const explicit = typeof body.key === "string" && /^audio\/[\w-]+\.mp3$/.test(body.key);
+      const key = explicit
+        ? (body.key as string)
+        : `video/${crypto.randomUUID()}/${safeName(body.filename ?? "episode.mp4")}`;
       const uploadId = await createMultipart(key, body.contentType || "video/mp4");
       return NextResponse.json({ key, uploadId });
     }

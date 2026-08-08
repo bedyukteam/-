@@ -7,6 +7,9 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+  // Behind Render's proxy req.url carries the internal origin (localhost:10000)
+  // — browser redirects must use the public URL.
+  const base = process.env.RENDER_EXTERNAL_URL ?? req.url;
 
   const cookieStore = await cookies();
   const expectedState = cookieStore.get("canva_oauth_state")?.value;
@@ -22,20 +25,20 @@ export async function GET(req: Request) {
       stateMatches: state === expectedState,
       host: url.host,
     });
-    return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
+    return NextResponse.redirect(new URL("/?connected=canva_error", base));
   }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", req.url));
+  if (!user) return NextResponse.redirect(new URL("/login", base));
 
   try {
     const tokens = await exchangeCode(code, verifier);
     if (!tokens.refresh_token) {
       console.error("[canva-callback] token response missing refresh_token");
-      return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
+      return NextResponse.redirect(new URL("/?connected=canva_error", base));
     }
     const { error: upsertErr } = await supabase.from("oauth_tokens").upsert(
       {
@@ -49,11 +52,11 @@ export async function GET(req: Request) {
     );
     if (upsertErr) {
       console.error("[canva-callback] oauth_tokens upsert failed:", upsertErr.message);
-      return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
+      return NextResponse.redirect(new URL("/?connected=canva_error", base));
     }
-    return NextResponse.redirect(new URL("/?connected=canva", req.url));
+    return NextResponse.redirect(new URL("/?connected=canva", base));
   } catch (e) {
     console.error("[canva-callback] token exchange failed:", e instanceof Error ? e.message : e);
-    return NextResponse.redirect(new URL("/?connected=canva_error", req.url));
+    return NextResponse.redirect(new URL("/?connected=canva_error", base));
   }
 }

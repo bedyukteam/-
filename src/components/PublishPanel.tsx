@@ -7,6 +7,8 @@ export default function PublishPanel({
   episodeId,
   locked,
   hasVideo,
+  hasAudio = false,
+  spotifyPublishedAt = null,
   youtubeStatus,
   youtubeVideoId,
   youtubeError,
@@ -17,6 +19,9 @@ export default function PublishPanel({
   episodeId: string;
   locked: boolean;
   hasVideo: boolean;
+  /** Episode has a podcast-quality MP3 (episodes.audio_key) — enables Spotify. */
+  hasAudio?: boolean;
+  spotifyPublishedAt?: string | null;
   youtubeStatus: string | null;
   youtubeVideoId: string | null;
   youtubeError: string | null;
@@ -26,6 +31,26 @@ export default function PublishPanel({
 }) {
   const [publishAt, setPublishAt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [podcastAt, setPodcastAt] = useState("");
+  const [podcastBusy, setPodcastBusy] = useState(false);
+  const [podcastErr, setPodcastErr] = useState<string | null>(null);
+
+  async function setPodcastPublish(publishAtIso: string | null, remove = false) {
+    setPodcastBusy(true);
+    setPodcastErr(null);
+    try {
+      const res = await fetch(`/api/episodes/${episodeId}/podcast`, {
+        method: remove ? "DELETE" : "POST",
+        headers: { "content-type": "application/json" },
+        body: remove ? undefined : JSON.stringify({ publishAt: publishAtIso }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (body.error) setPodcastErr(body.error);
+    } finally {
+      setPodcastBusy(false);
+      onChange();
+    }
+  }
 
   async function startDrive(publishAtIso: string | null) {
     const res = await fetch(`/api/episodes/${episodeId}/youtube/drive`, {
@@ -75,18 +100,81 @@ export default function PublishPanel({
     }
   }
 
+  const progress = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
+  const isLive = youtubeStatus === "published" || youtubeStatus === "scheduled";
+
+  const podcastSection = (
+    <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-4">
+      <h3 className="font-bold text-sm">פרסום לספוטיפיי (פודקאסט)</h3>
+
+      {!hasAudio ? (
+        <p className="text-sm text-muted-foreground">
+          זמין אחרי שנוצר קובץ אודיו לפרק (קורה אוטומטית בעיבוד פרק וידאו/אודיו).
+        </p>
+      ) : locked ? (
+        <p className="text-xs text-muted-foreground">נעול עד שכל האישורים הנדרשים למעלה יושלמו.</p>
+      ) : spotifyPublishedAt ? (
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <span className="text-success font-medium">
+            ✓ בפיד הפודקאסט מאז{" "}
+            {new Date(spotifyPublishedAt).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            ספוטיפיי מושך את הפיד כל ~שעתיים
+          </span>
+          <button
+            onClick={() => setPodcastPublish(null, true)}
+            disabled={podcastBusy}
+            className="text-xs underline text-muted-foreground hover:text-destructive disabled:opacity-50"
+          >
+            הסרה מהפיד
+          </button>
+        </div>
+      ) : (
+        <>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">תאריך פרסום (ריק = עכשיו; אפשר גם תאריך עבר לפרקי ארכיון)</span>
+            <input
+              type="datetime-local"
+              value={podcastAt}
+              onChange={(e) => setPodcastAt(e.target.value)}
+              dir="ltr"
+              className="border border-border rounded-lg px-3 py-2 outline-none focus:border-ring text-sm w-fit"
+            />
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() =>
+                setPodcastPublish(podcastAt ? new Date(podcastAt).toISOString() : null)
+              }
+              disabled={podcastBusy}
+              className="bg-brand text-brand-foreground rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-50 transition"
+            >
+              {podcastBusy ? "מפרסם…" : "פרסם לפיד"}
+            </button>
+            <span className="text-xs text-muted-foreground">
+              הפרק ייכנס לפיד ה-RSS ויופיע בספוטיפיי (ואפל) אוטומטית
+            </span>
+          </div>
+          {podcastErr && <p className="text-xs text-destructive">שגיאה: {podcastErr}</p>}
+        </>
+      )}
+    </div>
+  );
+
   if (!hasVideo) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-6 text-sm text-muted-foreground">
-        פרסום ליוטיוב זמין רק לפרקים שהועלו כווידאו מלא.
+      <div className="flex flex-col gap-4">
+        <div className="bg-card border border-border rounded-2xl p-6 text-sm text-muted-foreground">
+          פרסום ליוטיוב זמין רק לפרקים שהועלו כווידאו מלא.
+        </div>
+        {podcastSection}
       </div>
     );
   }
 
-  const progress = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
-  const isLive = youtubeStatus === "published" || youtubeStatus === "scheduled";
-
   return (
+    <div className="flex flex-col gap-4">
     <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-4">
       <h3 className="font-bold text-sm">פרסום ליוטיוב</h3>
 
@@ -164,6 +252,8 @@ export default function PublishPanel({
           )}
         </>
       )}
+    </div>
+    {podcastSection}
     </div>
   );
 }
