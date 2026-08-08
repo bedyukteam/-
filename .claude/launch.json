@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "studio",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "/Users/danielatemzin/Projects/podcast-studio", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}
